@@ -63,11 +63,11 @@ export const HelloWorld: React.FC<z.infer<typeof myCompSchema>> = ({
           <Logo logoColor1={logoColor1} logoColor2={logoColor2} />
         </AbsoluteFill>
         {/* Sequences can shift the time for its children! */}
-        <Sequence from={35}>
+        <Sequence from={22}>
           <Title titleText={propOne} titleColor={propTwo} />
         </Sequence>
         {/* The subtitle will only enter on the 75th frame. */}
-        <Sequence from={75}>
+        <Sequence from={53}>
           <Subtitle />
         </Sequence>
       </AbsoluteFill>

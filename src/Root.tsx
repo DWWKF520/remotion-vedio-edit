@@ -2,12 +2,33 @@ import "./index.css";
 import { Composition } from "remotion";
 import { HelloWorld, myCompSchema } from "./HelloWorld";
 import { Logo, myCompSchema2 } from "./HelloWorld/Logo";
+import { CompositionRenderer } from "./editor/renderer";
 
-// Each <Composition> is an entry in the sidebar!
-
+// 编辑器本身作为普通 React 应用运行（见 src/main.tsx + Vite），
+// 不再注册为 Composition。
+//
+// 这里的 Composition 仅供：
+// 1. `remotion render` 命令导出单个视频
+// 2. 编辑器的"导出"按钮通过 /api/export 调用 @remotion/renderer 渲染
+//
+// EditorExport 接收 inputProps（tracks/clips），由导出 API 传入当前编辑器状态。
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="EditorExport"
+        component={CompositionRenderer}
+        // 占位值，实际导出时由 selectComposition + 修改 durationInFrames 覆盖
+        durationInFrames={600}
+        fps={30}
+        width={1920}
+        height={1080}
+        defaultProps={{
+          tracks: [],
+          clips: {},
+        }}
+      />
+
       <Composition
         // You can take the "id" to render a video:
         // npx remotion render HelloWorld
@@ -17,8 +38,6 @@ export const RemotionRoot: React.FC = () => {
         fps={30}
         width={1920}
         height={1080}
-        // You can override these props for each render:
-        // https://www.remotion.dev/docs/parametrized-rendering
         schema={myCompSchema}
         defaultProps={{
           titleText: "Welcome to Remotion",
@@ -28,7 +47,6 @@ export const RemotionRoot: React.FC = () => {
         }}
       />
 
-      {/* Mount any React component to make it show up in the sidebar and work on it individually! */}
       <Composition
         id="OnlyLogo"
         component={Logo}
