@@ -144,6 +144,28 @@ export const PropertiesPanel: React.FC = () => {
                       }
                       style={inputStyle}
                     />
+                  ) : field.type === "textarea" ? (
+                    <textarea
+                      value={String(clip.props[field.name] ?? "")}
+                      onChange={(e) =>
+                        updateClipProps(clip.id, {
+                          [field.name]: e.target.value,
+                        })
+                      }
+                      rows={8}
+                      style={{
+                        ...inputStyle,
+                        resize: "vertical",
+                        minHeight: 120,
+                        fontFamily: "monospace",
+                        lineHeight: 1.5,
+                      }}
+                      placeholder={
+                        field.name === "subtitlesText"
+                          ? "0-3: 第一句字幕\n3-6: 第二句字幕\n6-10: 第三句字幕"
+                          : ""
+                      }
+                    />
                   ) : (
                     <input
                       type="text"

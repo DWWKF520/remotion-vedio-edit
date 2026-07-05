@@ -63,6 +63,24 @@ function framesToSRTTime(frame: number, fps: number): string {
   return `${hr.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
 }
 
+/** 解析字幕轨道文本（每行：`起始秒-结束秒: 文本`） */
+function parseSubtitlesText(text: string): { start: number; end: number; text: string }[] {
+  const lines = text.split("\n");
+  const entries: { start: number; end: number; text: string }[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const match = trimmed.match(/^([\d.]+)\s*-\s*([\d.]+)\s*[:：]?\s*(.*)$/);
+    if (!match) continue;
+    const start = parseFloat(match[1]);
+    const end = parseFloat(match[2]);
+    const subtitleText = match[3].trim();
+    if (!subtitleText) continue;
+    entries.push({ start, end, text: subtitleText });
+  }
+  return entries;
+}
+
 /** 从 clips 中提取字幕，生成 SRT 内容 */
 function generateSRT(
   tracks: Array<{ clipIds: string[] }>,
@@ -73,14 +91,29 @@ function generateSRT(
   for (const track of tracks) {
     for (const cid of track.clipIds) {
       const clip = clips[cid];
-      if (!clip || clip.componentKey !== "subtitle") continue;
-      const text = String(clip.props.text ?? "").trim();
-      if (!text) continue;
-      subtitles.push({
-        text,
-        startFrame: clip.start,
-        endFrame: clip.start + clip.duration,
-      });
+      if (!clip) continue;
+
+      if (clip.componentKey === "subtitle") {
+        // 单条字幕
+        const text = String(clip.props.text ?? "").trim();
+        if (!text) continue;
+        subtitles.push({
+          text,
+          startFrame: clip.start,
+          endFrame: clip.start + clip.duration,
+        });
+      } else if (clip.componentKey === "subtitleTrack") {
+        // 字幕轨道：解析多行字幕文本
+        const subtitlesText = String(clip.props.subtitlesText ?? "");
+        const entries = parseSubtitlesText(subtitlesText);
+        for (const entry of entries) {
+          subtitles.push({
+            text: entry.text,
+            startFrame: clip.start + Math.round(entry.start * fps),
+            endFrame: clip.start + Math.round(entry.end * fps),
+          });
+        }
+      }
     }
   }
   if (subtitles.length === 0) return null;

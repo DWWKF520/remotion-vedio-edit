@@ -89,7 +89,7 @@ export const ComponentLibrary: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {def.key === "helloworld" ? "🎬" : def.key === "subtitle" ? "💬" : "📦"}
+                {def.key === "helloworld" ? "🎬" : def.key === "subtitle" ? "💬" : def.key === "subtitleTrack" ? "📝" : "📦"}
               </div>
               <div style={{ fontWeight: 600, fontSize: 12 }}>{def.name}</div>
             </div>

@@ -6,6 +6,7 @@ import { PropertiesPanel } from "./properties";
 import { computeMaxEnd, useEditorStore } from "./store";
 import { useExportStore } from "./export-store";
 import { getComponentDef } from "./registry";
+import { parseSubtitlesText } from "./SubtitleTrack";
 
 /**
  * 编辑器主布局（剪映风格）：
@@ -37,21 +38,36 @@ export const EditorApp: React.FC = () => {
     const state = useEditorStore.getState();
     const { tracks, clips, fps } = state;
 
-    // 收集所有 subtitle 类型的 clip
+    // 收集所有字幕类型的 clip（subtitle 单条 + subtitleTrack 多条）
     const subtitleClips: { text: string; startFrame: number; endFrame: number }[] = [];
     for (const track of tracks) {
       for (const cid of track.clipIds) {
         const clip = clips[cid];
         if (!clip) continue;
         const def = getComponentDef(clip.componentKey);
-        if (def?.key !== "subtitle") continue;
-        const text = String(clip.props.text ?? "").trim();
-        if (!text) continue;
-        subtitleClips.push({
-          text,
-          startFrame: clip.start,
-          endFrame: clip.start + clip.duration,
-        });
+        if (!def) continue;
+
+        if (def.key === "subtitle") {
+          // 单条字幕
+          const text = String(clip.props.text ?? "").trim();
+          if (!text) continue;
+          subtitleClips.push({
+            text,
+            startFrame: clip.start,
+            endFrame: clip.start + clip.duration,
+          });
+        } else if (def.key === "subtitleTrack") {
+          // 字幕轨道：解析多行字幕文本
+          const subtitlesText = String(clip.props.subtitlesText ?? "");
+          const entries = parseSubtitlesText(subtitlesText);
+          for (const entry of entries) {
+            subtitleClips.push({
+              text: entry.text,
+              startFrame: clip.start + Math.round(entry.start * fps),
+              endFrame: clip.start + Math.round(entry.end * fps),
+            });
+          }
+        }
       }
     }
 

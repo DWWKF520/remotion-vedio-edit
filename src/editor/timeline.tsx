@@ -152,6 +152,22 @@ export const Timeline: React.FC = () => {
       // 拖拽时设置全局光标
       document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
 
+      const scrollEl = scrollRef.current;
+
+      const cleanup = () => {
+        dragState.current = null;
+        setSnapFrame(null);
+        document.body.style.cursor = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+        scrollEl?.removeEventListener("mouseleave", onMouseLeave);
+      };
+
+      const onMouseLeave = () => {
+        // 鼠标移出轨道区域，自动结束拖拽
+        cleanup();
+      };
+
       const onMove = (ev: MouseEvent) => {
         const ds = dragState.current;
         if (!ds) return;
@@ -211,14 +227,12 @@ export const Timeline: React.FC = () => {
       };
 
       const onUp = () => {
-        dragState.current = null;
-        setSnapFrame(null);
-        document.body.style.cursor = "";
-        window.removeEventListener("mousemove", onMove);
-        window.removeEventListener("mouseup", onUp);
+        cleanup();
       };
+
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      scrollEl?.addEventListener("mouseleave", onMouseLeave);
     },
     [pxPerFrame, selectClip, updateClipTiming, currentFrame],
   );
@@ -637,6 +651,11 @@ export const Timeline: React.FC = () => {
                       bg: "linear-gradient(135deg, rgba(236,72,153,0.6), rgba(190,24,93,0.6))",
                       bgSelected: "linear-gradient(135deg, rgba(236,72,153,0.9), rgba(190,24,93,0.9))",
                       border: "#ec4899",
+                    },
+                    subtitleTrack: {
+                      bg: "linear-gradient(135deg, rgba(251,146,60,0.6), rgba(234,88,12,0.6))",
+                      bgSelected: "linear-gradient(135deg, rgba(251,146,60,0.9), rgba(234,88,12,0.9))",
+                      border: "#fb923c",
                     },
                     logo: {
                       bg: "linear-gradient(135deg, rgba(6,182,212,0.6), rgba(14,116,144,0.6))",
