@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import type { Clip } from "./types";
@@ -91,6 +91,8 @@ export const Timeline: React.FC = () => {
     origDuration: number;
     origTrackId: string;
   } | null>(null);
+  // 对齐参考线位置（frame），null 时不显示
+  const [snapFrame, setSnapFrame] = useState<number | null>(null);
 
   const timelineWidth = frameToX(totalDuration, pxPerFrame);
 
@@ -147,36 +149,78 @@ export const Timeline: React.FC = () => {
         origTrackId: trackId,
       };
 
+      // 拖拽时设置全局光标
+      document.body.style.cursor = mode === "move" ? "grabbing" : "ew-resize";
+
       const onMove = (ev: MouseEvent) => {
         const ds = dragState.current;
         if (!ds) return;
         const dx = ev.clientX - ds.startX;
         const dFrames = Math.round(dx / pxPerFrame);
 
+        let newStart = ds.origStart;
+        let newDuration = ds.origDuration;
+
         if (ds.mode === "move") {
-          updateClipTiming(ds.clipId, ds.origStart + dFrames, ds.origDuration);
+          newStart = Math.max(0, ds.origStart + dFrames);
         } else if (ds.mode === "resize-r") {
-          updateClipTiming(
-            ds.clipId,
-            ds.origStart,
-            Math.max(1, ds.origDuration + dFrames),
-          );
+          newDuration = Math.max(1, ds.origDuration + dFrames);
         } else if (ds.mode === "resize-l") {
-          const newStart = Math.max(0, ds.origStart + dFrames);
-          const newDur = Math.max(1, ds.origDuration - dFrames);
-          updateClipTiming(ds.clipId, newStart, newDur);
+          newStart = Math.max(0, ds.origStart + dFrames);
+          newDuration = Math.max(1, ds.origDuration - dFrames);
         }
+
+        // 多轨对齐吸附
+        const snapThreshold = Math.max(1, Math.round(6 / pxPerFrame));
+        const allClips = Object.values(
+          useEditorStore.getState().clips,
+        ).filter((c) => c.id !== ds.clipId);
+        const snapTargets: number[] = [0, currentFrame];
+        for (const c of allClips) {
+          snapTargets.push(c.start, c.start + c.duration);
+        }
+
+        let snappedFrame: number | null = null;
+        const newEnd = newStart + newDuration;
+
+        if (ds.mode === "move" || ds.mode === "resize-l") {
+          for (const target of snapTargets) {
+            if (Math.abs(newStart - target) <= snapThreshold) {
+              const diff = target - newStart;
+              newStart = target;
+              if (ds.mode === "resize-l") {
+                newDuration = Math.max(1, newDuration - diff);
+              }
+              snappedFrame = target;
+              break;
+            }
+          }
+        }
+        if (snappedFrame === null && (ds.mode === "move" || ds.mode === "resize-r")) {
+          for (const target of snapTargets) {
+            if (Math.abs(newEnd - target) <= snapThreshold) {
+              newDuration = Math.max(1, target - newStart);
+              snappedFrame = target;
+              break;
+            }
+          }
+        }
+
+        setSnapFrame(snappedFrame);
+        updateClipTiming(ds.clipId, newStart, newDuration);
       };
 
       const onUp = () => {
         dragState.current = null;
+        setSnapFrame(null);
+        document.body.style.cursor = "";
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
       };
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
     },
-    [pxPerFrame, selectClip, updateClipTiming],
+    [pxPerFrame, selectClip, updateClipTiming, currentFrame],
   );
 
   const onClipDropToTrack = useCallback(
@@ -718,6 +762,23 @@ export const Timeline: React.FC = () => {
               </div>
             );
           })}
+
+          {/* 多轨对齐参考线 */}
+          {snapFrame !== null && (
+            <div
+              style={{
+                position: "absolute",
+                left: frameToX(snapFrame, pxPerFrame),
+                top: 0,
+                bottom: 0,
+                width: 1,
+                background: "#fbbf24",
+                zIndex: 18,
+                pointerEvents: "none",
+                boxShadow: "0 0 6px rgba(251,191,36,0.6)",
+              }}
+            />
+          )}
 
           {/* 播放头 */}
           <div
