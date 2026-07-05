@@ -8,4 +8,5 @@ out
 
 # Ignore exported MP4s from the editor
 public/exports
+public/uploads
 
