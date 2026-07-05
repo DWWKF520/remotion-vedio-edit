@@ -2,8 +2,19 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
+
+// 获取 ffmpeg 可执行文件路径（优先 @ffmpeg-installer，降级到 PATH 中的 ffmpeg）
+function getFfmpegPath(): string {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require("@ffmpeg-installer/ffmpeg").path as string;
+  } catch {
+    return "ffmpeg";
+  }
+}
 
 // Vite 配置：用 @remotion/player 在普通浏览器环境运行编辑器，
 // 完全脱离 Remotion Studio。
@@ -39,6 +50,70 @@ function ensureExportDir(): string {
   const dir = path.resolve(__dirname, "public/exports");
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   return dir;
+}
+
+/** 帧数转 SRT 时间格式 HH:MM:SS,mmm */
+function framesToSRTTime(frame: number, fps: number): string {
+  const totalMs = Math.round((frame / fps) * 1000);
+  const ms = totalMs % 1000;
+  const totalSec = Math.floor(totalMs / 1000);
+  const sec = totalSec % 60;
+  const min = Math.floor(totalSec / 60) % 60;
+  const hr = Math.floor(totalSec / 3600);
+  return `${hr.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")},${ms.toString().padStart(3, "0")}`;
+}
+
+/** 从 clips 中提取字幕，生成 SRT 内容 */
+function generateSRT(
+  tracks: Array<{ clipIds: string[] }>,
+  clips: Record<string, { componentKey: string; props: Record<string, unknown>; start: number; duration: number }>,
+  fps: number,
+): string | null {
+  const subtitles: { text: string; startFrame: number; endFrame: number }[] = [];
+  for (const track of tracks) {
+    for (const cid of track.clipIds) {
+      const clip = clips[cid];
+      if (!clip || clip.componentKey !== "subtitle") continue;
+      const text = String(clip.props.text ?? "").trim();
+      if (!text) continue;
+      subtitles.push({
+        text,
+        startFrame: clip.start,
+        endFrame: clip.start + clip.duration,
+      });
+    }
+  }
+  if (subtitles.length === 0) return null;
+  subtitles.sort((a, b) => a.startFrame - b.startFrame);
+  return subtitles
+    .map((item, i) => {
+      const start = framesToSRTTime(item.startFrame, fps);
+      const end = framesToSRTTime(item.endFrame, fps);
+      return `${i + 1}\n${start} --> ${end}\n${item.text}`;
+    })
+    .join("\n\n");
+}
+
+/** 用 ffmpeg 将 SRT 字幕嵌入 MP4（作为软字幕轨道） */
+function muxSubtitles(
+  mp4Path: string,
+  srtPath: string,
+  outputPath: string,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      getFfmpegPath(),
+      ["-i", mp4Path, "-i", srtPath, "-c", "copy", "-c:s", "mov_text", "-y", outputPath],
+      (error, _stdout, stderr) => {
+        if (error) {
+          console.error("ffmpeg mux error:", stderr || error.message);
+          reject(error);
+        } else {
+          resolve();
+        }
+      },
+    );
+  });
 }
 
 export default defineConfig({
@@ -111,10 +186,38 @@ export default defineConfig({
                 },
               });
 
+              // 尝试将字幕嵌入 MP4
+              const fps = payload.fps || 30;
+              const srtContent = generateSRT(
+                payload.tracks as Array<{ clipIds: string[] }>,
+                payload.clips as Record<string, { componentKey: string; props: Record<string, unknown>; start: number; duration: number }>,
+                fps,
+              );
+
+              let finalUrl = `/exports/${jobId}.mp4`;
+
+              if (srtContent) {
+                try {
+                  const srtPath = path.join(outDir, `${jobId}.srt`);
+                  const muxedPath = path.join(outDir, `${jobId}_muxed.mp4`);
+                  fs.writeFileSync(srtPath, "\uFEFF" + srtContent, "utf-8");
+                  await muxSubtitles(outputPath, srtPath, muxedPath);
+                  // 替换原文件
+                  fs.unlinkSync(outputPath);
+                  fs.renameSync(muxedPath, outputPath);
+                  // 清理 SRT
+                  fs.unlinkSync(srtPath);
+                  console.log(`[export] subtitles muxed into ${jobId}.mp4`);
+                } catch (muxErr) {
+                  // ffmpeg 不可用或嵌入失败，降级为无字幕 MP4
+                  console.warn("[export] subtitle mux failed, serving MP4 without subtitles:", muxErr instanceof Error ? muxErr.message : muxErr);
+                }
+              }
+
               jobs.set(jobId, {
                 progress: 1,
                 done: true,
-                url: `/exports/${jobId}.mp4`,
+                url: finalUrl,
               });
             } catch (e) {
               jobs.set(jobId, {
