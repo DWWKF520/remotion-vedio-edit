@@ -6,15 +6,9 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
 
-// 获取 ffmpeg 可执行文件路径（优先 @ffmpeg-installer，降级到 PATH 中的 ffmpeg）
-function getFfmpegPath(): string {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    return require("@ffmpeg-installer/ffmpeg").path as string;
-  } catch {
-    return "ffmpeg";
-  }
-}
+// 获取 ffmpeg 可执行文件路径
+// 全局安装的 @ffmpeg-installer/ffmpeg 路径
+const FFMPEG_PATH = "D:/nodejs/node_global/node_modules/@ffmpeg-installer/ffmpeg/node_modules/@ffmpeg-installer/win32-x64/ffmpeg.exe";
 
 // Vite 配置：用 @remotion/player 在普通浏览器环境运行编辑器，
 // 完全脱离 Remotion Studio。
@@ -135,7 +129,7 @@ function muxSubtitles(
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(
-      getFfmpegPath(),
+      FFMPEG_PATH,
       ["-i", mp4Path, "-i", srtPath, "-c", "copy", "-c:s", "mov_text", "-y", outputPath],
       (error, _stdout, stderr) => {
         if (error) {

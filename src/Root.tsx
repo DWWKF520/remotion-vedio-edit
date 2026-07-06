@@ -1,7 +1,7 @@
 import "./index.css";
 import { Composition } from "remotion";
-import { HelloWorld, myCompSchema } from "./HelloWorld";
-import { Logo, myCompSchema2 } from "./HelloWorld/Logo";
+import { HelloWorld, myCompSchema } from "./components/HelloWorld";
+import { Logo, myCompSchema2 } from "./components/HelloWorld/Logo";
 import { CompositionRenderer } from "./editor/renderer";
 
 // 编辑器本身作为普通 React 应用运行（见 src/main.tsx + Vite），

@@ -1,10 +1,35 @@
-import React from "react";
+import React, { useState } from "react";
 import { registry } from "./registry";
 import { useEditorStore } from "./store";
 
-/** 组件库面板：列出所有可用组件，点击添加到时间线 */
+// 字幕类组件 key
+const SUBTITLE_KEYS = ["subtitle", "subtitleTrack"];
+
+const getIcon = (key: string): string => {
+  if (key === "helloworld") return "🎬";
+  if (key === "subtitle") return "💬";
+  if (key === "subtitleTrack") return "📝";
+  if (key === "claudeType") return "🤖";
+  return "📦";
+};
+
+const getAccentColor = (key: string): string => {
+  if (key === "helloworld") return "#6366f1";
+  if (key === "subtitle") return "#ec4899";
+  if (key === "subtitleTrack") return "#f97316";
+  if (key === "claudeType") return "#D97757";
+  return "#8b5cf6";
+};
+
+/** 组件库面板：素材库 + 字幕库 两个 tab */
 export const ComponentLibrary: React.FC = () => {
   const addClipFromRegistry = useEditorStore((s) => s.addClipFromRegistry);
+  const [tab, setTab] = useState<"materials" | "subtitles">("materials");
+
+  const items =
+    tab === "materials"
+      ? registry.filter((d) => !SUBTITLE_KEYS.includes(d.key))
+      : registry.filter((d) => SUBTITLE_KEYS.includes(d.key));
 
   return (
     <div
@@ -13,101 +38,159 @@ export const ComponentLibrary: React.FC = () => {
         flexShrink: 0,
         background: "#161618",
         borderRight: "1px solid rgba(255,255,255,0.06)",
-        padding: 0,
         color: "#ddd",
         fontSize: 12,
-        overflowY: "auto",
         display: "flex",
         flexDirection: "column",
+        overflow: "hidden",
       }}
     >
+      {/* Tab 切换 */}
       <div
         style={{
-          fontWeight: 600,
-          padding: "12px 14px 8px",
-          textTransform: "uppercase",
-          color: "#888",
-          fontSize: 10,
-          letterSpacing: 1.2,
+          display: "flex",
           flexShrink: 0,
           borderBottom: "1px solid rgba(255,255,255,0.04)",
         }}
       >
-        素材库
+        <TabBtn
+          active={tab === "materials"}
+          onClick={() => setTab("materials")}
+          label="素材库"
+        />
+        <TabBtn
+          active={tab === "subtitles"}
+          onClick={() => setTab("subtitles")}
+          label="字幕库"
+        />
       </div>
+
+      {/* 组件列表 */}
       <div
         style={{
+          flex: 1,
+          overflowY: "auto",
+          padding: "10px",
           display: "flex",
           flexDirection: "column",
-          gap: 6,
-          padding: "8px 10px",
+          gap: 8,
         }}
       >
-        {registry.map((def) => (
-          <button
-            key={def.key}
-            onClick={() => addClipFromRegistry(def.key)}
-            style={{
-              textAlign: "left",
-              background: "rgba(255,255,255,0.03)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: 8,
-              padding: 10,
-              color: "#ddd",
-              cursor: "pointer",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(139,92,246,0.08)";
-              e.currentTarget.style.borderColor = "rgba(139,92,246,0.2)";
-              e.currentTarget.style.transform = "translateY(-1px)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
-              e.currentTarget.style.transform = "translateY(0)";
-            }}
-          >
+        {items.map((def) => {
+          const color = getAccentColor(def.key);
+          return (
             <div
+              key={def.key}
+              onClick={() => addClipFromRegistry(def.key)}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                marginBottom: 4,
+                position: "relative",
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid rgba(255,255,255,0.06)",
+                borderRadius: 10,
+                padding: "12px 10px 10px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = `${color}12`;
+                e.currentTarget.style.borderColor = `${color}40`;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
               }}
             >
+              {/* 图标 + 名称 */}
               <div
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
-                  background: "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: `linear-gradient(135deg, ${color}25, ${color}10)`,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 16,
+                    flexShrink: 0,
+                  }}
+                >
+                  {getIcon(def.key)}
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 12, color: "#e0e0e0" }}>
+                  {def.name}
+                </div>
+              </div>
+
+              {/* 右下角加号按钮 */}
+              <div
+                style={{
+                  position: "absolute",
+                  right: 8,
+                  bottom: 8,
+                  width: 22,
+                  height: 22,
+                  borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${color}, ${color}cc)`,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 14,
-                  flexShrink: 0,
+                  boxShadow: `0 2px 6px ${color}40`,
+                  transition: "transform 0.15s",
                 }}
               >
-                {def.key === "helloworld" ? "🎬" : def.key === "subtitle" ? "💬" : def.key === "subtitleTrack" ? "📝" : "📦"}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
               </div>
-              <div style={{ fontWeight: 600, fontSize: 12 }}>{def.name}</div>
             </div>
-            <div style={{ color: "#666", fontSize: 10, lineHeight: 1.4, marginBottom: 4 }}>
-              {def.description}
-            </div>
-            <div
-              style={{
-                fontSize: 10,
-                color: "#8b5cf6",
-                fontWeight: 500,
-              }}
-            >
-              + 添加到时间线
-            </div>
-          </button>
-        ))}
+          );
+        })}
+        {items.length === 0 && (
+          <div
+            style={{
+              color: "#555",
+              textAlign: "center",
+              padding: "30px 0",
+              fontSize: 11,
+            }}
+          >
+            暂无组件
+          </div>
+        )}
       </div>
     </div>
   );
 };
+
+const TabBtn: React.FC<{
+  active: boolean;
+  onClick: () => void;
+  label: string;
+}> = ({ active, onClick, label }) => (
+  <button
+    onClick={onClick}
+    style={{
+      flex: 1,
+      padding: "10px 0",
+      background: "transparent",
+      border: "none",
+      borderBottom: active
+        ? "2px solid #8b5cf6"
+        : "2px solid transparent",
+      color: active ? "#e0e0e0" : "#666",
+      fontWeight: active ? 600 : 400,
+      fontSize: 12,
+      cursor: "pointer",
+      transition: "all 0.2s",
+    }}
+  >
+    {label}
+  </button>
+);

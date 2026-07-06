@@ -56,7 +56,7 @@ export const Preview: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#0a0a0a",
+        background: "#050508",
         padding: 16,
         position: "relative",
       }}
@@ -67,9 +67,11 @@ export const Preview: React.FC = () => {
           maxWidth: "100%",
           aspectRatio: `${width} / ${height}`,
           maxHeight: "100%",
-          borderRadius: 8,
+          borderRadius: 6,
           overflow: "hidden",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+          border: "2px solid rgba(139,92,246,0.25)",
+          boxShadow:
+            "0 0 0 1px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04)",
         }}
       >
         <Player

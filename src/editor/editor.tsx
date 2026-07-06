@@ -6,7 +6,7 @@ import { PropertiesPanel } from "./properties";
 import { computeMaxEnd, useEditorStore } from "./store";
 import { useExportStore } from "./export-store";
 import { getComponentDef } from "./registry";
-import { parseSubtitlesText } from "./SubtitleTrack";
+import { parseSubtitlesText } from "../components/SubtitleTrack";
 
 /**
  * 编辑器主布局（剪映风格）：
