@@ -662,6 +662,11 @@ export const Timeline: React.FC = () => {
                       bgSelected: "linear-gradient(135deg, rgba(217,119,87,0.9), rgba(184,93,61,0.9))",
                       border: "#D97757",
                     },
+                    wechat2d: {
+                      bg: "linear-gradient(135deg, rgba(7,193,96,0.6), rgba(6,173,86,0.6))",
+                      bgSelected: "linear-gradient(135deg, rgba(7,193,96,0.9), rgba(6,173,86,0.9))",
+                      border: "#07C160",
+                    },
                     logo: {
                       bg: "linear-gradient(135deg, rgba(6,182,212,0.6), rgba(14,116,144,0.6))",
                       bgSelected: "linear-gradient(135deg, rgba(6,182,212,0.9), rgba(14,116,144,0.9))",

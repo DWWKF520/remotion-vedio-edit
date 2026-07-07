@@ -10,6 +10,7 @@ const getIcon = (key: string): string => {
   if (key === "subtitle") return "💬";
   if (key === "subtitleTrack") return "📝";
   if (key === "claudeType") return "🤖";
+  if (key === "wechat2d") return "💚";
   return "📦";
 };
 
@@ -18,6 +19,7 @@ const getAccentColor = (key: string): string => {
   if (key === "subtitle") return "#ec4899";
   if (key === "subtitleTrack") return "#f97316";
   if (key === "claudeType") return "#D97757";
+  if (key === "wechat2d") return "#07C160";
   return "#8b5cf6";
 };
 
