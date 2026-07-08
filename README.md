@@ -6,9 +6,7 @@
   <img src="./public/favicon.svg" width="72" height="72" alt="logo" />
 </p>
 
-<p align="center">
-  <video src="https://github.com/DWWKF520/my-video/blob/main/Recording.mp4" controls></video>
-</p>
+https://github.com/DWWKF520/my-video/blob/main/Recording.mp4
 
 ## 特性
 
