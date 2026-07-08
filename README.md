@@ -2,11 +2,9 @@
 
 基于 **Remotion + React 19 + Vite + Zustand** 的多轨视频编辑器，仿剪映风格的深色 UI。编辑器作为普通 React 应用运行，预览由 `@remotion/player` 实时渲染，导出通过 Vite 中间件调用 `@remotion/renderer` 完成，并支持把字幕以 SRT 软字幕轨道的形式封装进 MP4（剪映可识别）。
 
-<p align="center">
-  <img src="./public/favicon.svg" width="72" height="72" alt="logo" />
-</p>
+<center><img src="./public/favicon.svg" alt="演示动画"></center>
 
-https://github.com/DWWKF520/my-video/blob/main/Recording.mp4
+<center><img src="./public/1000089952.gif" alt="演示动画"></center>
 
 ## 特性
 
