@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/postcss";
 import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition } from "@remotion/renderer";
 import { execFile } from "node:child_process";
@@ -286,6 +287,15 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+  },
+  css: {
+    postcss: {
+      plugins: [
+        // 使用 base 选项显式指定项目根目录，修复 Vite 虚拟路径 /src/index.css
+        // 导致 Tailwind v4 误认为 CSS 在 E:\src\ 下而无法解析 @import "tailwindcss"
+        tailwindcss({ base: path.resolve(__dirname) }),
+      ],
+    },
   },
 });
 

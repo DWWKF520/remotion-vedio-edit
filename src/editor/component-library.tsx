@@ -23,8 +23,10 @@ const getAccentColor = (key: string): string => {
   return "#8b5cf6";
 };
 
-/** 组件库面板：素材库 + 字幕库 两个 tab */
-export const ComponentLibrary: React.FC = () => {
+/** 素材库面板：素材库 + 字幕库 两个独立 tab，点击右下角加号添加到轨道 */
+export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
+  collapsed,
+}) => {
   const addClipFromRegistry = useEditorStore((s) => s.addClipFromRegistry);
   const [tab, setTab] = useState<"materials" | "subtitles">("materials");
 
@@ -33,28 +35,32 @@ export const ComponentLibrary: React.FC = () => {
       ? registry.filter((d) => !SUBTITLE_KEYS.includes(d.key))
       : registry.filter((d) => SUBTITLE_KEYS.includes(d.key));
 
+  // 收起状态：窄条仅显示图标
+  if (collapsed) {
+    return (
+      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-r border-black/5 bg-white/60 py-3 dark:border-white/8 dark:bg-[#161618]/60">
+        {items.map((def) => {
+          const color = getAccentColor(def.key);
+          return (
+            <button
+              key={def.key}
+              onClick={() => addClipFromRegistry(def.key)}
+              title={def.name}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-base transition-transform hover:scale-110"
+              style={{ background: `${color}1a` }}
+            >
+              {getIcon(def.key)}
+            </button>
+          );
+        })}
+      </aside>
+    );
+  }
+
   return (
-    <div
-      style={{
-        width: 200,
-        flexShrink: 0,
-        background: "#161618",
-        borderRight: "1px solid rgba(255,255,255,0.06)",
-        color: "#ddd",
-        fontSize: 12,
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-      }}
-    >
+    <aside className="flex w-[200px] flex-shrink-0 flex-col overflow-hidden border-r border-black/5 bg-white/60 text-slate-800 dark:border-white/8 dark:bg-[#161618]/60 dark:text-gray-200">
       {/* Tab 切换 */}
-      <div
-        style={{
-          display: "flex",
-          flexShrink: 0,
-          borderBottom: "1px solid rgba(255,255,255,0.04)",
-        }}
-      >
+      <div className="flex flex-shrink-0 border-b border-black/5 dark:border-white/5">
         <TabBtn
           active={tab === "materials"}
           onClick={() => setTab("materials")}
@@ -68,86 +74,60 @@ export const ComponentLibrary: React.FC = () => {
       </div>
 
       {/* 组件列表 */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: "auto",
-          padding: "10px",
-          display: "flex",
-          flexDirection: "column",
-          gap: 8,
-        }}
-      >
+      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
         {items.map((def) => {
           const color = getAccentColor(def.key);
           return (
             <div
               key={def.key}
               onClick={() => addClipFromRegistry(def.key)}
-              style={{
-                position: "relative",
-                background: "rgba(255,255,255,0.03)",
-                border: "1px solid rgba(255,255,255,0.06)",
-                borderRadius: 10,
-                padding: "12px 10px 10px",
-                cursor: "pointer",
-                transition: "all 0.2s",
-              }}
+              className="group relative cursor-pointer rounded-xl border border-black/5 bg-white/50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-black/10 hover:shadow-lg dark:border-white/5 dark:bg-white/[0.03] dark:hover:border-white/10 dark:hover:shadow-black/30"
+              style={
+                {
+                  "--accent": color,
+                } as React.CSSProperties
+              }
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = `${color}12`;
-                e.currentTarget.style.borderColor = `${color}40`;
+                e.currentTarget.style.background = `${color}14`;
+                e.currentTarget.style.borderColor = `${color}55`;
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+                e.currentTarget.style.background = "";
+                e.currentTarget.style.borderColor = "";
               }}
             >
               {/* 图标 + 名称 */}
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                }}
-              >
+              <div className="flex items-center gap-2">
                 <div
+                  className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-base"
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    background: `linear-gradient(135deg, ${color}25, ${color}10)`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 16,
-                    flexShrink: 0,
+                    background: `linear-gradient(135deg, ${color}33, ${color}14)`,
                   }}
                 >
                   {getIcon(def.key)}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 12, color: "#e0e0e0" }}>
+                <div className="text-xs font-semibold text-slate-800 dark:text-gray-200">
                   {def.name}
                 </div>
               </div>
 
               {/* 右下角加号按钮 */}
               <div
+                className="absolute bottom-2 right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full shadow-sm transition-transform duration-150 group-hover:scale-110"
                 style={{
-                  position: "absolute",
-                  right: 8,
-                  bottom: 8,
-                  width: 22,
-                  height: 22,
-                  borderRadius: "50%",
                   background: `linear-gradient(135deg, ${color}, ${color}cc)`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  boxShadow: `0 2px 6px ${color}40`,
-                  transition: "transform 0.15s",
+                  boxShadow: `0 2px 6px ${color}55`,
                 }}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round">
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                >
                   <path d="M12 5v14M5 12h14" />
                 </svg>
               </div>
@@ -155,19 +135,12 @@ export const ComponentLibrary: React.FC = () => {
           );
         })}
         {items.length === 0 && (
-          <div
-            style={{
-              color: "#555",
-              textAlign: "center",
-              padding: "30px 0",
-              fontSize: 11,
-            }}
-          >
+          <div className="py-7 text-center text-xs text-slate-400 dark:text-gray-500">
             暂无组件
           </div>
         )}
       </div>
-    </div>
+    </aside>
   );
 };
 
@@ -178,20 +151,11 @@ const TabBtn: React.FC<{
 }> = ({ active, onClick, label }) => (
   <button
     onClick={onClick}
-    style={{
-      flex: 1,
-      padding: "10px 0",
-      background: "transparent",
-      border: "none",
-      borderBottom: active
-        ? "2px solid #8b5cf6"
-        : "2px solid transparent",
-      color: active ? "#e0e0e0" : "#666",
-      fontWeight: active ? 600 : 400,
-      fontSize: 12,
-      cursor: "pointer",
-      transition: "all 0.2s",
-    }}
+    className={`flex-1 border-b-2 py-2.5 text-xs transition-all ${
+      active
+        ? "border-violet-500 font-semibold text-slate-800 dark:border-violet-400 dark:text-gray-100"
+        : "border-transparent font-normal text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
+    }`}
   >
     {label}
   </button>

@@ -2,8 +2,10 @@ import React from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 
-/** 属性面板：编辑选中 clip 的 props */
-export const PropertiesPanel: React.FC = () => {
+/** 属性面板：编辑选中 clip 的 props，支持收起为窄条 */
+export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
+  collapsed,
+}) => {
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const clips = useEditorStore((s) => s.clips);
   const updateClipProps = useEditorStore((s) => s.updateClipProps);
@@ -12,116 +14,152 @@ export const PropertiesPanel: React.FC = () => {
   const clip = selectedClipId ? clips[selectedClipId] : null;
   const def = clip ? getComponentDef(clip.componentKey) : null;
 
+  // 收起状态：窄条仅显示图标提示
+  if (collapsed) {
+    return (
+      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-l border-black/5 bg-white/60 py-3 dark:border-white/8 dark:bg-[#161618]/60">
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          className="text-slate-400 dark:text-gray-500"
+        >
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z" />
+        </svg>
+        {clip && (
+          <div className="mt-1 px-1 text-center text-[9px] leading-tight text-slate-400 dark:text-gray-500">
+            {clip.name.slice(0, 4)}
+          </div>
+        )}
+      </aside>
+    );
+  }
+
   return (
-    <div
-      style={{
-        width: 260,
-        flexShrink: 0,
-        background: "#161616",
-        borderLeft: "1px solid #222",
-        padding: 16,
-        color: "#ddd",
-        fontSize: 12,
-        overflowY: "auto",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 600,
-          marginBottom: 12,
-          textTransform: "uppercase",
-          color: "#888",
-          fontSize: 11,
-          letterSpacing: 1,
-        }}
-      >
-        Properties
-      </div>
-
-      {!clip || !def ? (
-        <div style={{ color: "#666" }}>
-          Select a clip on the timeline to edit its properties.
+    <aside className="flex w-[260px] flex-shrink-0 flex-col overflow-hidden border-l border-black/5 bg-white/60 text-slate-800 dark:border-white/8 dark:bg-[#161618]/60 dark:text-gray-200">
+      <div className="overflow-y-auto p-4 text-xs">
+        <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-gray-500">
+          属性 / Properties
         </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <div>
-            <label style={labelStyle}>Name</label>
-            <div style={{ color: "#fff", fontWeight: 600 }}>{clip.name}</div>
-          </div>
 
-          <div>
-            <label style={labelStyle}>Component</label>
-            <div style={{ color: "#aaa" }}>{def.name}</div>
+        {!clip || !def ? (
+          <div className="text-slate-400 dark:text-gray-500">
+            在时间线上选择一个片段以编辑其属性。
           </div>
-
-          <div style={{ display: "flex", gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Start (frame)</label>
-              <input
-                type="number"
-                value={clip.start}
-                onChange={(e) =>
-                  updateClipTiming(
-                    clip.id,
-                    Number(e.target.value),
-                    clip.duration,
-                  )
-                }
-                style={inputStyle}
-              />
-            </div>
-            <div style={{ flex: 1 }}>
-              <label style={labelStyle}>Duration</label>
-              <input
-                type="number"
-                value={clip.duration}
-                onChange={(e) =>
-                  updateClipTiming(
-                    clip.id,
-                    clip.start,
-                    Number(e.target.value),
-                  )
-                }
-                style={inputStyle}
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              borderTop: "1px solid #2a2a2a",
-              margin: "8px 0",
-              paddingTop: 8,
-            }}
-          >
-            <div style={{ ...labelStyle, marginBottom: 8 }}>Props</div>
-            {def.propSchema.length === 0 ? (
-              <div style={{ color: "#666", fontStyle: "italic" }}>
-                This component has no editable props.
+        ) : (
+          <div className="flex flex-col gap-3">
+            <div>
+              <label className={labelClass}>名称</label>
+              <div className="font-semibold text-slate-800 dark:text-white">
+                {clip.name}
               </div>
-            ) : (
-              def.propSchema.map((field) => (
-                <div key={field.name} style={{ marginBottom: 8 }}>
-                  <label style={labelStyle}>{field.label}</label>
-                  {field.type === "color" ? (
-                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            </div>
+
+            <div>
+              <label className={labelClass}>组件</label>
+              <div className="text-slate-500 dark:text-gray-400">
+                {def.name}
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className={labelClass}>起始帧</label>
+                <input
+                  type="number"
+                  value={clip.start}
+                  onChange={(e) =>
+                    updateClipTiming(
+                      clip.id,
+                      Number(e.target.value),
+                      clip.duration,
+                    )
+                  }
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex-1">
+                <label className={labelClass}>时长</label>
+                <input
+                  type="number"
+                  value={clip.duration}
+                  onChange={(e) =>
+                    updateClipTiming(
+                      clip.id,
+                      clip.start,
+                      Number(e.target.value),
+                    )
+                  }
+                  className={inputClass}
+                />
+              </div>
+            </div>
+
+            <div className="border-t border-black/5 pt-2 dark:border-white/8">
+              <div className={`${labelClass} mb-2`}>属性 Props</div>
+              {def.propSchema.length === 0 ? (
+                <div className="italic text-slate-400 dark:text-gray-500">
+                  此组件没有可编辑属性。
+                </div>
+              ) : (
+                def.propSchema.map((field) => (
+                  <div key={field.name} className="mb-2">
+                    <label className={labelClass}>{field.label}</label>
+                    {field.type === "color" ? (
+                      <div className="flex gap-1.5 items-center">
+                        <input
+                          type="color"
+                          value={String(clip.props[field.name] ?? "#000000")}
+                          onChange={(e) =>
+                            updateClipProps(clip.id, {
+                              [field.name]: e.target.value,
+                            })
+                          }
+                          className="h-7 w-9 cursor-pointer rounded border border-black/10 bg-transparent dark:border-white/10"
+                        />
+                        <input
+                          type="text"
+                          value={String(clip.props[field.name] ?? "")}
+                          onChange={(e) =>
+                            updateClipProps(clip.id, {
+                              [field.name]: e.target.value,
+                            })
+                          }
+                          className={`${inputClass} flex-1`}
+                        />
+                      </div>
+                    ) : field.type === "number" ? (
                       <input
-                        type="color"
-                        value={String(clip.props[field.name] ?? "#000000")}
+                        type="number"
+                        value={Number(clip.props[field.name] ?? 0)}
+                        onChange={(e) =>
+                          updateClipProps(clip.id, {
+                            [field.name]: Number(e.target.value),
+                          })
+                        }
+                        className={inputClass}
+                      />
+                    ) : field.type === "textarea" ? (
+                      <textarea
+                        value={String(clip.props[field.name] ?? "")}
                         onChange={(e) =>
                           updateClipProps(clip.id, {
                             [field.name]: e.target.value,
                           })
                         }
-                        style={{
-                          width: 36,
-                          height: 28,
-                          background: "transparent",
-                          border: "1px solid #333",
-                          borderRadius: 4,
-                          cursor: "pointer",
-                        }}
+                        rows={8}
+                        className={`${inputClass} resize-y min-h-[120px] font-mono leading-relaxed`}
+                        placeholder={
+                          field.name === "subtitlesText"
+                            ? "0-3: 第一句字幕\n3-6: 第二句字幕\n6-10: 第三句字幕"
+                            : ""
+                        }
                       />
+                    ) : (
                       <input
                         type="text"
                         value={String(clip.props[field.name] ?? "")}
@@ -130,80 +168,22 @@ export const PropertiesPanel: React.FC = () => {
                             [field.name]: e.target.value,
                           })
                         }
-                        style={{ ...inputStyle, flex: 1 }}
+                        className={inputClass}
                       />
-                    </div>
-                  ) : field.type === "number" ? (
-                    <input
-                      type="number"
-                      value={Number(clip.props[field.name] ?? 0)}
-                      onChange={(e) =>
-                        updateClipProps(clip.id, {
-                          [field.name]: Number(e.target.value),
-                        })
-                      }
-                      style={inputStyle}
-                    />
-                  ) : field.type === "textarea" ? (
-                    <textarea
-                      value={String(clip.props[field.name] ?? "")}
-                      onChange={(e) =>
-                        updateClipProps(clip.id, {
-                          [field.name]: e.target.value,
-                        })
-                      }
-                      rows={8}
-                      style={{
-                        ...inputStyle,
-                        resize: "vertical",
-                        minHeight: 120,
-                        fontFamily: "monospace",
-                        lineHeight: 1.5,
-                      }}
-                      placeholder={
-                        field.name === "subtitlesText"
-                          ? "0-3: 第一句字幕\n3-6: 第二句字幕\n6-10: 第三句字幕"
-                          : ""
-                      }
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={String(clip.props[field.name] ?? "")}
-                      onChange={(e) =>
-                        updateClipProps(clip.id, {
-                          [field.name]: e.target.value,
-                        })
-                      }
-                      style={inputStyle}
-                    />
-                  )}
-                </div>
-              ))
-            )}
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </aside>
   );
 };
 
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 10,
-  color: "#888",
-  marginBottom: 4,
-  textTransform: "uppercase",
-  letterSpacing: 0.5,
-};
+const labelClass =
+  "mb-1 block text-[10px] uppercase tracking-wide text-slate-400 dark:text-gray-500";
 
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  background: "#0a0a0a",
-  border: "1px solid #333",
-  borderRadius: 4,
-  padding: "4px 6px",
-  color: "#fff",
-  fontSize: 12,
-  outline: "none",
-};
+const inputClass =
+  "w-full rounded border border-black/10 bg-slate-50 px-1.5 py-1 text-xs text-slate-800 outline-none transition-colors focus:border-violet-500 dark:border-white/10 dark:bg-black/30 dark:text-gray-100 dark:focus:border-violet-400";

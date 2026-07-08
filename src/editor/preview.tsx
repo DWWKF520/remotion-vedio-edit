@@ -5,11 +5,11 @@ import { setPlayerRef, useEditorStore } from "./store";
 
 /**
  * 预览区：用 @remotion/player 的 <Player> 渲染 CompositionRenderer。
- *
- * Player 在普通浏览器环境运行（不在 Composition 内部），所以可以直接使用。
  * - playerRef 通过 module-level 引用暴露给 store，用于 play/pause/seek
  * - frameupdate 事件回调更新 store.currentFrame，驱动时间线播放头
  * - 播放/暂停/seek 由编辑器自己的 UI 控制（见 editor.tsx）
+ *
+ * 放大并加边框，占据中间最大视觉面积。
  */
 export const Preview: React.FC = () => {
   const width = useEditorStore((s) => s.width);
@@ -49,30 +49,10 @@ export const Preview: React.FC = () => {
   }, [onFrameChange, onPlayStateChanged]);
 
   return (
-    <div
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "#050508",
-        padding: 16,
-        position: "relative",
-      }}
-    >
+    <div className="relative flex min-h-0 flex-1 items-center justify-center bg-slate-200/50 p-4 dark:bg-[#050508]">
       <div
-        style={{
-          width: "100%",
-          maxWidth: "100%",
-          aspectRatio: `${width} / ${height}`,
-          maxHeight: "100%",
-          borderRadius: 6,
-          overflow: "hidden",
-          border: "2px solid rgba(139,92,246,0.25)",
-          boxShadow:
-            "0 0 0 1px rgba(0,0,0,0.5), 0 8px 32px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.04)",
-        }}
+        className="aspect-video max-h-full w-full max-w-full overflow-hidden rounded-lg border-2 border-violet-500/30 shadow-2xl shadow-black/20 ring-1 ring-black/5 dark:shadow-black/50 dark:ring-white/5"
+        style={{ aspectRatio: `${width} / ${height}` }}
       >
         <Player
           ref={ref}

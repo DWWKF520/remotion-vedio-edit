@@ -60,6 +60,53 @@ const IconFrameForward: React.FC<{ size?: number }> = ({ size = 16 }) => (
   </svg>
 );
 
+// 各组件类型片段配色（数据驱动，保留渐变）
+const clipColors: Record<string, { bg: string; bgSelected: string; border: string }> = {
+  helloworld: {
+    bg: "linear-gradient(135deg, rgba(139,92,246,0.6), rgba(109,40,217,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(139,92,246,0.9), rgba(109,40,217,0.9))",
+    border: "#8b5cf6",
+  },
+  // 字幕片段：粉色渐变
+  subtitle: {
+    bg: "linear-gradient(135deg, rgba(236,72,153,0.6), rgba(190,24,93,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(236,72,153,0.9), rgba(190,24,93,0.9))",
+    border: "#ec4899",
+  },
+  // 字幕轨道组件：橙色片段
+  subtitleTrack: {
+    bg: "linear-gradient(135deg, rgba(251,146,60,0.6), rgba(234,88,12,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(251,146,60,0.9), rgba(234,88,12,0.9))",
+    border: "#fb923c",
+  },
+  claudeType: {
+    bg: "linear-gradient(135deg, rgba(217,119,87,0.6), rgba(184,93,61,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(217,119,87,0.9), rgba(184,93,61,0.9))",
+    border: "#D97757",
+  },
+  wechat2d: {
+    bg: "linear-gradient(135deg, rgba(7,193,96,0.6), rgba(6,173,86,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(7,193,96,0.9), rgba(6,173,86,0.9))",
+    border: "#07C160",
+  },
+  logo: {
+    bg: "linear-gradient(135deg, rgba(6,182,212,0.6), rgba(14,116,144,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(6,182,212,0.9), rgba(14,116,144,0.9))",
+    border: "#06b6d4",
+  },
+  title: {
+    bg: "linear-gradient(135deg, rgba(34,197,94,0.6), rgba(21,128,61,0.6))",
+    bgSelected: "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(21,128,61,0.9))",
+    border: "#22c55e",
+  },
+};
+
+const defaultClipColor = {
+  bg: "linear-gradient(135deg, rgba(249,115,22,0.6), rgba(154,52,18,0.6))",
+  bgSelected: "linear-gradient(135deg, rgba(249,115,22,0.9), rgba(154,52,18,0.9))",
+  border: "#f97316",
+};
+
 export const Timeline: React.FC = () => {
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
@@ -164,7 +211,7 @@ export const Timeline: React.FC = () => {
       };
 
       const onMouseLeave = () => {
-        // 鼠标移出轨道区域，自动结束拖拽
+        // 鼠标移出轨道区域，自动结束拖拽（无需点击释放）
         cleanup();
       };
 
@@ -186,7 +233,7 @@ export const Timeline: React.FC = () => {
           newDuration = Math.max(1, ds.origDuration - dFrames);
         }
 
-        // 多轨对齐吸附
+        // 多轨对齐吸附（6px 范围内显示金色垂直参考线）
         const snapThreshold = Math.max(1, Math.round(6 / pxPerFrame));
         const allClips = Object.values(
           useEditorStore.getState().clips,
@@ -247,36 +294,13 @@ export const Timeline: React.FC = () => {
   );
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        background: "#121215",
-        borderTop: "1px solid rgba(255,255,255,0.06)",
-        height: 300,
-        minHeight: 250,
-        color: "#ddd",
-        fontSize: 12,
-        flexShrink: 0,
-      }}
-    >
-      {/* 播放控件栏 - 剪映风格：居中的播放按钮 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 6,
-          padding: "6px 16px",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          background: "#161618",
-          height: 40,
-          flexShrink: 0,
-        }}
-      >
-        {/* 左侧：添加轨道 */}
+    <div className="flex h-[300px] min-h-[250px] flex-shrink-0 flex-col border-t border-black/5 bg-white/50 text-xs text-slate-700 dark:border-white/8 dark:bg-[#121215]/80 dark:text-gray-300">
+      {/* ===== 播放控件栏 - 剪映风格：居中的播放按钮 ===== */}
+      <div className="glass flex h-10 flex-shrink-0 items-center gap-1.5 border-b border-black/5 bg-white/70 px-4 dark:border-white/8 dark:bg-[#161618]/70">
+        {/* 左侧：添加轨道 - 次级按钮 */}
         <button
           onClick={() => addTrack("overlay")}
-          style={smallToolBtn}
+          className="flex items-center gap-1 rounded-md border border-black/5 bg-black/5 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-black/10 dark:border-white/8 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
           title="添加叠加轨道"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -286,7 +310,7 @@ export const Timeline: React.FC = () => {
         </button>
         <button
           onClick={() => addTrack("background")}
-          style={smallToolBtn}
+          className="flex items-center gap-1 rounded-md border border-black/5 bg-black/5 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-black/10 dark:border-white/8 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
           title="添加背景轨道"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -295,94 +319,64 @@ export const Timeline: React.FC = () => {
           <span>背景轨道</span>
         </button>
 
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
 
         {/* 中间：播放控件 */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 2,
-          }}
-        >
+        <div className="flex items-center gap-0.5">
           <button
             onClick={() => setCurrentFrame(0)}
             title="回到开头 (Home)"
-            style={playBtn}
+            className="play-btn"
           >
             <IconSkipBack size={14} />
           </button>
           <button
             onClick={() => setCurrentFrame(currentFrame - 1)}
             title="上一帧 (←)"
-            style={playBtn}
+            className="play-btn"
           >
             <IconFrameBack size={14} />
           </button>
           <button
             onClick={togglePlay}
             title="播放/暂停 (Space)"
-            style={{
-              ...playBtn,
-              width: 32,
-              height: 32,
-              borderRadius: "50%",
-              background: isPlaying
-                ? "rgba(139,92,246,0.2)"
-                : "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              color: "#fff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 ${
+              isPlaying
+                ? "bg-violet-500/20 text-violet-600 dark:text-violet-300"
+                : "bg-gradient-to-br from-indigo-500 to-violet-500 shadow-md shadow-indigo-500/30"
+            }`}
           >
             {isPlaying ? <IconPause size={14} /> : <IconPlay size={14} />}
           </button>
           <button
             onClick={() => setCurrentFrame(currentFrame + 1)}
             title="下一帧 (→)"
-            style={playBtn}
+            className="play-btn"
           >
             <IconFrameForward size={14} />
           </button>
           <button
             onClick={() => setCurrentFrame(totalDuration - 1)}
             title="跳到结尾 (End)"
-            style={playBtn}
+            className="play-btn"
           >
             <IconSkipForward size={14} />
           </button>
         </div>
 
         {/* 时间显示 */}
-        <div
-          style={{
-            marginLeft: 12,
-            fontVariantNumeric: "tabular-nums",
-            fontSize: 11,
-            color: "#999",
-            minWidth: 140,
-          }}
-        >
-          <span style={{ color: "#e0e0e0", fontWeight: 600 }}>
+        <div className="ml-3 min-w-[140px] font-mono text-[11px] text-slate-400 dark:text-gray-500">
+          <span className="font-semibold text-slate-800 dark:text-gray-100">
             {formatTime(currentFrame, fps)}
           </span>
-          <span style={{ color: "#555", margin: "0 4px" }}>/</span>
+          <span className="mx-1 text-slate-300 dark:text-gray-600">/</span>
           <span>{formatTime(totalDuration, fps)}</span>
         </div>
 
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
 
         {/* 右侧：缩放 */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-            color: "#888",
-            fontSize: 11,
-          }}
-        >
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-gray-500">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35M8 11h6M11 8v6" />
@@ -394,42 +388,19 @@ export const Timeline: React.FC = () => {
             step={0.5}
             value={pxPerFrame}
             onChange={(e) => setPxPerFrame(Number(e.target.value))}
-            style={{
-              width: 80,
-              accentColor: "#8b5cf6",
-              cursor: "pointer",
-            }}
+            className="w-20 cursor-pointer"
           />
         </div>
 
         {/* 选中片段信息 */}
         {selectedClipId && clips[selectedClipId] && (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              marginLeft: 8,
-              padding: "2px 8px",
-              background: "rgba(139,92,246,0.1)",
-              borderRadius: 4,
-              fontSize: 11,
-            }}
-          >
-            <span style={{ color: "#c4b5fd" }}>
+          <div className="ml-2 flex items-center gap-2 rounded bg-violet-500/10 px-2 py-0.5 text-[11px]">
+            <span className="text-violet-600 dark:text-violet-300">
               {clips[selectedClipId].name}
             </span>
             <button
               onClick={() => removeClip(selectedClipId)}
-              style={{
-                background: "rgba(239,68,68,0.15)",
-                border: "none",
-                borderRadius: 3,
-                padding: "1px 6px",
-                color: "#fca5a5",
-                cursor: "pointer",
-                fontSize: 10,
-              }}
+              className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-500 transition-colors hover:bg-red-500/25 dark:text-red-300"
               title="删除 (Del)"
             >
               删除
@@ -438,53 +409,30 @@ export const Timeline: React.FC = () => {
         )}
       </div>
 
-      {/* 时间线轨道区 */}
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+      {/* ===== 时间线轨道区 ===== */}
+      <div className="flex min-h-0 flex-1">
         {/* 左侧轨道头 */}
         <div
-          style={{
-            width: TRACK_HEAD_WIDTH,
-            flexShrink: 0,
-            borderRight: "1px solid rgba(255,255,255,0.06)",
-            background: "#161618",
-          }}
+          className="flex-shrink-0 border-r border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
+          style={{ width: TRACK_HEAD_WIDTH }}
         >
           <div
-            style={{
-              height: RULER_HEIGHT,
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
-            }}
+            className="border-b border-black/5 dark:border-white/8"
+            style={{ height: RULER_HEIGHT }}
           />
           {tracks.map((t) => (
             <div
               key={t.id}
-              style={{
-                height: TRACK_HEIGHT,
-                padding: "4px 8px",
-                borderBottom: "1px solid rgba(255,255,255,0.04)",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                gap: 2,
-                background: t.muted
-                  ? "rgba(255,255,255,0.01)"
-                  : "transparent",
-              }}
+              className={`flex flex-col justify-center gap-0.5 border-b border-black/5 px-2 py-1 dark:border-white/5 ${
+                t.muted ? "bg-black/[0.02] dark:bg-white/[0.01]" : ""
+              }`}
+              style={{ height: TRACK_HEIGHT }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                  justifyContent: "space-between",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <div className="flex items-center justify-between gap-1">
+                <div className="flex items-center gap-1">
                   <div
+                    className="h-3 w-[3px] rounded-sm"
                     style={{
-                      width: 3,
-                      height: 12,
-                      borderRadius: 2,
                       background:
                         t.kind === "background"
                           ? "linear-gradient(180deg, #38bdf8, #0284c7)"
@@ -492,20 +440,20 @@ export const Timeline: React.FC = () => {
                     }}
                   />
                   <span
-                    style={{
-                      fontWeight: 600,
-                      fontSize: 11,
-                      color: t.muted ? "#555" : "#ccc",
-                    }}
+                    className={`text-[11px] font-semibold ${
+                      t.muted
+                        ? "text-slate-400 dark:text-gray-600"
+                        : "text-slate-700 dark:text-gray-200"
+                    }`}
                   >
                     {t.name}
                   </span>
                 </div>
-                <div style={{ display: "flex", gap: 1 }}>
+                <div className="flex gap-0.5">
                   <button
                     title={t.muted ? "显示" : "隐藏"}
                     onClick={() => toggleTrackMuted(t.id)}
-                    style={trackIconBtn}
+                    className="track-icon-btn"
                   >
                     {t.muted ? (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -522,7 +470,7 @@ export const Timeline: React.FC = () => {
                   <button
                     title={t.locked ? "解锁" : "锁定"}
                     onClick={() => toggleTrackLocked(t.id)}
-                    style={trackIconBtn}
+                    className="track-icon-btn"
                   >
                     {t.locked ? (
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -539,7 +487,7 @@ export const Timeline: React.FC = () => {
                   <button
                     title="删除轨道"
                     onClick={() => removeTrack(t.id)}
-                    style={trackIconBtn}
+                    className="track-icon-btn"
                   >
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M18 6L6 18M6 6l12 12" />
@@ -547,7 +495,7 @@ export const Timeline: React.FC = () => {
                   </button>
                 </div>
               </div>
-              <span style={{ color: "#555", fontSize: 9, paddingLeft: 7 }}>
+              <span className="pl-[7px] text-[9px] text-slate-400 dark:text-gray-600">
                 {t.clipIds.length} 个片段
               </span>
             </div>
@@ -557,27 +505,17 @@ export const Timeline: React.FC = () => {
         {/* 右侧时间线滚动区 */}
         <div
           ref={scrollRef}
-          style={{
-            flex: 1,
-            overflow: "auto",
-            position: "relative",
-            background: "#0e0e10",
-          }}
+          className="relative flex-1 overflow-auto bg-slate-100/50 dark:bg-[#0e0e10]"
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) selectClip(null);
           }}
         >
           {/* 标尺 */}
           <div
+            className="sticky top-0 z-[5] cursor-pointer border-b border-black/5 bg-white/80 dark:border-white/8 dark:bg-[#161618]/90"
             style={{
               height: RULER_HEIGHT,
-              position: "sticky",
-              top: 0,
-              zIndex: 5,
-              background: "#161618",
-              borderBottom: "1px solid rgba(255,255,255,0.06)",
               width: Math.max(timelineWidth, 800),
-              cursor: "pointer",
             }}
             onMouseDown={onRulerMouseDown}
           >
@@ -587,17 +525,8 @@ export const Timeline: React.FC = () => {
                 return (
                   <div
                     key={i}
-                    style={{
-                      position: "absolute",
-                      left: frameToX(frame, pxPerFrame),
-                      top: 0,
-                      bottom: 0,
-                      borderLeft: "1px solid rgba(255,255,255,0.06)",
-                      paddingLeft: 4,
-                      fontSize: 9,
-                      color: "#555",
-                      lineHeight: `${RULER_HEIGHT}px`,
-                    }}
+                    className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
+                    style={{ left: frameToX(frame, pxPerFrame) }}
                   >
                     {frame}
                   </div>
@@ -612,14 +541,13 @@ export const Timeline: React.FC = () => {
             return (
               <div
                 key={track.id}
+                className="relative border-b border-black/5 dark:border-white/5"
                 style={{
                   height: TRACK_HEIGHT,
-                  borderBottom: "1px solid rgba(255,255,255,0.04)",
                   width: Math.max(timelineWidth, 800),
-                  position: "relative",
                   background: track.muted
-                    ? "repeating-linear-gradient(45deg,#0e0e10,#0e0e10 6px,#121215 6px,#121215 12px)"
-                    : "#101012",
+                    ? "repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(100,116,139,0.06) 6px,rgba(100,116,139,0.06) 12px)"
+                    : undefined,
                   opacity: track.muted ? 0.5 : 1,
                 }}
                 onDragOver={(e) => {
@@ -641,49 +569,7 @@ export const Timeline: React.FC = () => {
                   const width = Math.max(8, frameToX(clip.duration, pxPerFrame));
                   const selected = cid === selectedClipId;
 
-                  const clipColors: Record<string, { bg: string; bgSelected: string; border: string }> = {
-                    helloworld: {
-                      bg: "linear-gradient(135deg, rgba(139,92,246,0.6), rgba(109,40,217,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(139,92,246,0.9), rgba(109,40,217,0.9))",
-                      border: "#8b5cf6",
-                    },
-                    subtitle: {
-                      bg: "linear-gradient(135deg, rgba(236,72,153,0.6), rgba(190,24,93,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(236,72,153,0.9), rgba(190,24,93,0.9))",
-                      border: "#ec4899",
-                    },
-                    subtitleTrack: {
-                      bg: "linear-gradient(135deg, rgba(251,146,60,0.6), rgba(234,88,12,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(251,146,60,0.9), rgba(234,88,12,0.9))",
-                      border: "#fb923c",
-                    },
-                    claudeType: {
-                      bg: "linear-gradient(135deg, rgba(217,119,87,0.6), rgba(184,93,61,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(217,119,87,0.9), rgba(184,93,61,0.9))",
-                      border: "#D97757",
-                    },
-                    wechat2d: {
-                      bg: "linear-gradient(135deg, rgba(7,193,96,0.6), rgba(6,173,86,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(7,193,96,0.9), rgba(6,173,86,0.9))",
-                      border: "#07C160",
-                    },
-                    logo: {
-                      bg: "linear-gradient(135deg, rgba(6,182,212,0.6), rgba(14,116,144,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(6,182,212,0.9), rgba(14,116,144,0.9))",
-                      border: "#06b6d4",
-                    },
-                    title: {
-                      bg: "linear-gradient(135deg, rgba(34,197,94,0.6), rgba(21,128,61,0.6))",
-                      bgSelected: "linear-gradient(135deg, rgba(34,197,94,0.9), rgba(21,128,61,0.9))",
-                      border: "#22c55e",
-                    },
-                  };
-
-                  const color = clipColors[def?.key ?? ""] ?? {
-                    bg: "linear-gradient(135deg, rgba(249,115,22,0.6), rgba(154,52,18,0.6))",
-                    bgSelected: "linear-gradient(135deg, rgba(249,115,22,0.9), rgba(154,52,18,0.9))",
-                    border: "#f97316",
-                  };
+                  const color = clipColors[def?.key ?? ""] ?? defaultClipColor;
 
                   return (
                     <div
@@ -700,24 +586,20 @@ export const Timeline: React.FC = () => {
                         e.stopPropagation();
                         selectClip(cid);
                       }}
+                      className="absolute top-1 overflow-hidden rounded-md border transition-[box-shadow,border-color] duration-150"
                       style={{
-                        position: "absolute",
-                        top: 4,
                         left,
                         width,
                         height: TRACK_HEIGHT - 8,
                         background: selected ? color.bgSelected : color.bg,
-                        borderRadius: 6,
-                        border: selected
-                          ? `1px solid ${color.border}`
-                          : "1px solid rgba(255,255,255,0.08)",
+                        borderColor: selected
+                          ? color.border
+                          : "rgba(255,255,255,0.08)",
                         cursor: locked ? "not-allowed" : "move",
-                        overflow: "hidden",
-                        userSelect: "none",
                         boxShadow: selected
                           ? `0 0 0 2px ${color.border}40, 0 2px 8px ${color.border}30`
                           : "0 1px 3px rgba(0,0,0,0.2)",
-                        transition: "box-shadow 0.15s, border-color 0.15s",
+                        userSelect: "none",
                       }}
                       title={`${clip.name}  (${clip.start} → ${clip.start + clip.duration})`}
                     >
@@ -727,36 +609,17 @@ export const Timeline: React.FC = () => {
                           !locked &&
                           startClipDrag(e, clip, "resize-l", track.id)
                         }
-                        style={{
-                          position: "absolute",
-                          left: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 6,
-                          cursor: locked ? "not-allowed" : "ew-resize",
-                          borderRadius: "6px 0 0 6px",
-                          background: "rgba(255,255,255,0)",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.15)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0)";
-                        }}
+                        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-md transition-colors hover:bg-white/20"
+                        style={{ cursor: locked ? "not-allowed" : "ew-resize" }}
                       />
                       {/* 片段内容 */}
                       <div
+                        className="overflow-hidden whitespace-nowrap py-0 px-2.5 font-semibold text-white"
                         style={{
-                          padding: "0 10px",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                          color: "#fff",
-                          fontWeight: 600,
+                          textShadow: "0 1px 2px rgba(0,0,0,0.3)",
                           fontSize: 10,
                           lineHeight: `${TRACK_HEIGHT - 8}px`,
-                          textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+                          textOverflow: "ellipsis",
                         }}
                       >
                         {clip.name}
@@ -767,23 +630,8 @@ export const Timeline: React.FC = () => {
                           !locked &&
                           startClipDrag(e, clip, "resize-r", track.id)
                         }
-                        style={{
-                          position: "absolute",
-                          right: 0,
-                          top: 0,
-                          bottom: 0,
-                          width: 6,
-                          cursor: locked ? "not-allowed" : "ew-resize",
-                          borderRadius: "0 6px 6px 0",
-                          background: "rgba(255,255,255,0)",
-                          transition: "background 0.15s",
-                        }}
-                        onMouseEnter={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.15)";
-                        }}
-                        onMouseLeave={(e) => {
-                          (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0)";
-                        }}
+                        className="absolute right-0 top-0 bottom-0 w-1.5 rounded-r-md transition-colors hover:bg-white/20"
+                        style={{ cursor: locked ? "not-allowed" : "ew-resize" }}
                       />
                     </div>
                   );
@@ -792,18 +640,12 @@ export const Timeline: React.FC = () => {
             );
           })}
 
-          {/* 多轨对齐参考线 */}
+          {/* 多轨对齐参考线（金色） */}
           {snapFrame !== null && (
             <div
+              className="pointer-events-none absolute top-0 bottom-0 z-[18] w-px bg-amber-400"
               style={{
-                position: "absolute",
                 left: frameToX(snapFrame, pxPerFrame),
-                top: 0,
-                bottom: 0,
-                width: 1,
-                background: "#fbbf24",
-                zIndex: 18,
-                pointerEvents: "none",
                 boxShadow: "0 0 6px rgba(251,191,36,0.6)",
               }}
             />
@@ -812,86 +654,23 @@ export const Timeline: React.FC = () => {
           {/* 播放头 */}
           <div
             onMouseDown={startPlayheadDrag}
+            className="absolute top-0 bottom-0 z-20 cursor-ew-resize"
             style={{
-              position: "absolute",
               left: frameToX(currentFrame, pxPerFrame) - 5,
-              top: 0,
-              bottom: 0,
               width: 10,
-              cursor: "ew-resize",
-              zIndex: 20,
             }}
             title="拖动播放头"
           >
             {/* 中线 */}
-            <div
-              style={{
-                position: "absolute",
-                left: 4,
-                top: 0,
-                bottom: 0,
-                width: 2,
-                background: "linear-gradient(180deg, #ef4444, #dc2626)",
-                boxShadow: "0 0 4px rgba(239,68,68,0.4)",
-              }}
-            />
+            <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
             {/* 顶部手柄 */}
             <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: 10,
-                height: 12,
-                background: "linear-gradient(180deg, #ef4444, #dc2626)",
-                clipPath: "polygon(0 0, 100% 0, 50% 100%)",
-                boxShadow: "0 1px 3px rgba(239,68,68,0.3)",
-              }}
+              className="absolute top-0 left-0 h-3 w-2.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_1px_3px_rgba(239,68,68,0.3)]"
+              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
             />
           </div>
         </div>
       </div>
     </div>
   );
-};
-
-const playBtn: React.CSSProperties = {
-  background: "rgba(255,255,255,0.05)",
-  color: "#bbb",
-  border: "none",
-  borderRadius: 6,
-  width: 28,
-  height: 28,
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-  transition: "all 0.15s",
-};
-
-const smallToolBtn: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 4,
-  background: "rgba(255,255,255,0.05)",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 6,
-  padding: "4px 8px",
-  color: "#aaa",
-  cursor: "pointer",
-  fontSize: 11,
-  transition: "all 0.15s",
-};
-
-const trackIconBtn: React.CSSProperties = {
-  background: "transparent",
-  border: "none",
-  borderRadius: 3,
-  padding: "2px",
-  color: "#666",
-  cursor: "pointer",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  transition: "color 0.15s",
 };

@@ -7,22 +7,23 @@ import { computeMaxEnd, useEditorStore } from "./store";
 import { useExportStore } from "./export-store";
 import { getComponentDef } from "./registry";
 import { parseSubtitlesText } from "../components/SubtitleTrack";
+import { useThemeStore } from "./theme-store";
 
 /**
- * 编辑器主布局（剪映风格）：
+ * 编辑器主布局（剪映 PC 风格）：
  *
- * ┌───────────────────────────────────────────────────┐
- * │  顶部工具栏 (Logo + Export + 任务指示器)            │
- * ├──────────┬──────────────────────────┬─────────────┤
- * │ Library  │       Preview            │ Properties  │
- * ├──────────┴──────────────────────────┴─────────────┤
- * │ ▶ ⏮ ⏭ 时间显示 | 缩放                              │
- * │ Timeline (multi-track)                            │
- * └───────────────────────────────────────────────────┘
+ * ┌──────────────────────────────────────────────────────┐
+ * │  顶部导航栏 (Logo + 任务指示器 + 主题切换 + 导出)        │
+ * ├───────────┬─────────────────────────┬─────────────────┤
+ * │ 素材面板   │       预览播放器          │   属性控制面板   │
+ * ├───────────┴─────────────────────────┴─────────────────┤
+ * │ 播放控件 + 多层时间轴轨道（底部固定高度可滚动）            │
+ * └──────────────────────────────────────────────────────┘
  *
- * - 播放控件移到底部时间线上方，类似剪映
- * - 预览由 @remotion/player 渲染
- * - 导出是异步的
+ * - 主题：Tailwind dark 类全局明暗切换，无卡顿
+ * - 预览区占据最大视觉面积，时间轴底部固定可滚动
+ * - 左右侧边栏支持收起展开
+ * - 苹果液态玻璃质感
  */
 
 export const EditorApp: React.FC = () => {
@@ -33,12 +34,18 @@ export const EditorApp: React.FC = () => {
   const togglePlay = useEditorStore((s) => s.togglePlay);
   const setCurrentFrame = useEditorStore((s) => s.setCurrentFrame);
 
+  const theme = useThemeStore((s) => s.theme);
+  const toggleTheme = useThemeStore((s) => s.toggleTheme);
+  const leftCollapsed = useThemeStore((s) => s.leftCollapsed);
+  const rightCollapsed = useThemeStore((s) => s.rightCollapsed);
+  const toggleLeft = useThemeStore((s) => s.toggleLeft);
+  const toggleRight = useThemeStore((s) => s.toggleRight);
+
   // 导出 SRT 字幕文件
   const exportSRT = () => {
     const state = useEditorStore.getState();
     const { tracks, clips, fps } = state;
 
-    // 收集所有字幕类型的 clip（subtitle 单条 + subtitleTrack 多条）
     const subtitleClips: { text: string; startFrame: number; endFrame: number }[] = [];
     for (const track of tracks) {
       for (const cid of track.clipIds) {
@@ -48,7 +55,6 @@ export const EditorApp: React.FC = () => {
         if (!def) continue;
 
         if (def.key === "subtitle") {
-          // 单条字幕
           const text = String(clip.props.text ?? "").trim();
           if (!text) continue;
           subtitleClips.push({
@@ -57,7 +63,6 @@ export const EditorApp: React.FC = () => {
             endFrame: clip.start + clip.duration,
           });
         } else if (def.key === "subtitleTrack") {
-          // 字幕轨道：解析多行字幕文本
           const subtitlesText = String(clip.props.subtitlesText ?? "");
           const entries = parseSubtitlesText(subtitlesText);
           for (const entry of entries) {
@@ -76,10 +81,8 @@ export const EditorApp: React.FC = () => {
       return;
     }
 
-    // 按起始帧排序
     subtitleClips.sort((a, b) => a.startFrame - b.startFrame);
 
-    // 生成 SRT 内容
     const srt = subtitleClips
       .map((item, i) => {
         const start = framesToSRTTime(item.startFrame, fps);
@@ -88,7 +91,6 @@ export const EditorApp: React.FC = () => {
       })
       .join("\n\n");
 
-    // 下载文件
     const blob = new Blob(["\uFEFF" + srt], { type: "text/srt;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -264,7 +266,6 @@ export const EditorApp: React.FC = () => {
     }
   };
 
-  // 任务统计
   const activeJobs = jobs.filter((j) => j.status === "rendering");
   const doneJobs = jobs.filter((j) => j.status === "done");
   const errorJobs = jobs.filter((j) => j.status === "error");
@@ -274,178 +275,141 @@ export const EditorApp: React.FC = () => {
       : 0;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        width: "100%",
-        height: "100%",
-        background: "#0e0e10",
-        overflow: "hidden",
-        fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
-      }}
-    >
-      {/* 顶部工具栏 - 精简版 */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "6px 16px",
-          background: "#161618",
-          borderBottom: "1px solid rgba(255,255,255,0.06)",
-          color: "#eee",
-          fontSize: 13,
-          height: 42,
-          flexShrink: 0,
-        }}
-      >
-        <span
-          style={{
-            fontWeight: 700,
-            letterSpacing: 0.5,
-            background: "linear-gradient(135deg, #8b5cf6, #6366f1)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            fontSize: 14,
-          }}
+    <div className="flex h-full w-full flex-col overflow-hidden bg-slate-100 font-sans text-slate-800 dark:bg-[#0a0a0c] dark:text-gray-200">
+      {/* ===== 顶部导航栏 ===== */}
+      <header className="glass flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/5 bg-white/70 px-3 dark:border-white/8 dark:bg-[#161618]/70">
+        {/* Logo / 品牌 */}
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 shadow-sm">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
+              <path d="M8 5v14l11-7z" />
+            </svg>
+          </div>
+          <span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-sm font-bold tracking-wide text-transparent">
+            Video Editor
+          </span>
+        </div>
+
+        <div className="mx-1 h-4 w-px bg-black/10 dark:bg-white/10" />
+
+        {/* 侧栏折叠按钮 */}
+        <button
+          onClick={toggleLeft}
+          title={leftCollapsed ? "展开素材面板" : "收起素材面板"}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5"
         >
-          Video Editor
-        </span>
-        <span style={{ color: "rgba(255,255,255,0.1)" }}>|</span>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M9 3v18" />
+          </svg>
+        </button>
+        <button
+          onClick={toggleRight}
+          title={rightCollapsed ? "展开属性面板" : "收起属性面板"}
+          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M15 3v18" />
+          </svg>
+        </button>
 
         {/* 导出任务指示器 */}
         {activeJobs.length > 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            style={{
-              ...topbarBtn,
-              background: "rgba(59,130,246,0.15)",
-              borderColor: "rgba(59,130,246,0.3)",
-              color: "#93c5fd",
-            }}
+            className="flex items-center gap-1.5 rounded-md border border-blue-300/50 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-300"
             title="Exporting in background..."
           >
-            <span style={{ fontSize: 12 }}>⏳</span>
+            <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+              <path d="M21 12a9 9 0 11-6.219-8.56" strokeLinecap="round" />
+            </svg>
             <span>导出中 {Math.round(totalProgress * 100)}%</span>
           </button>
         )}
         {activeJobs.length === 0 && doneJobs.length > 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            style={{
-              ...topbarBtn,
-              background: "rgba(34,197,94,0.15)",
-              borderColor: "rgba(34,197,94,0.3)",
-              color: "#86efac",
-            }}
+            className="flex items-center gap-1.5 rounded-md border border-emerald-300/50 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-300"
             title="Downloads ready"
           >
-            <span style={{ fontSize: 12 }}>✓</span>
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5" />
+            </svg>
             <span>{doneJobs.length} 个已完成</span>
           </button>
         )}
         {activeJobs.length === 0 && errorJobs.length > 0 && doneJobs.length === 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            style={{
-              ...topbarBtn,
-              background: "rgba(239,68,68,0.15)",
-              borderColor: "rgba(239,68,68,0.3)",
-              color: "#fca5a5",
-            }}
+            className="flex items-center gap-1.5 rounded-md border border-red-300/50 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:border-red-500/30 dark:text-red-300"
             title="Export failed"
           >
-            <span style={{ fontSize: 12 }}>⚠</span>
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
             <span>导出失败</span>
           </button>
         )}
 
-        <span style={{ flex: 1 }} />
+        <span className="flex-1" />
 
-        {/* Export SRT 按钮 */}
+        {/* 导出字幕 - 次级按钮 */}
         <button
           onClick={exportSRT}
-          style={{
-            background: "transparent",
-            border: "1px solid rgba(236,72,153,0.4)",
-            borderRadius: 8,
-            padding: "6px 14px",
-            fontWeight: 600,
-            color: "#f9a8d4",
-            cursor: "pointer",
-            fontSize: 12,
-            transition: "all 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "rgba(236,72,153,0.1)";
-            e.currentTarget.style.borderColor = "rgba(236,72,153,0.6)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "transparent";
-            e.currentTarget.style.borderColor = "rgba(236,72,153,0.4)";
-          }}
+          className="rounded-lg border border-pink-300/60 bg-transparent px-3 py-1 text-xs font-semibold text-pink-500 transition-all hover:-translate-y-px hover:bg-pink-500/10 hover:shadow-sm dark:border-pink-500/40 dark:text-pink-300"
           title="导出 SRT 字幕文件，可导入剪映"
         >
           导出字幕
         </button>
 
-        {/* Export 按钮 */}
+        {/* 导出 MP4 - 主操作按钮 */}
         <button
           onClick={startExport}
-          style={{
-            background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-            border: "none",
-            borderRadius: 8,
-            padding: "6px 18px",
-            fontWeight: 600,
-            color: "#fff",
-            cursor: "pointer",
-            fontSize: 12,
-            transition: "all 0.2s",
-            boxShadow: "0 2px 8px rgba(99,102,241,0.3)",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-1px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(99,102,241,0.4)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 2px 8px rgba(99,102,241,0.3)";
-          }}
+          className="rounded-lg border-none bg-gradient-to-br from-indigo-500 to-violet-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/30 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-indigo-500/40 active:translate-y-0"
           title="Render current timeline to MP4"
         >
           导出 MP4
         </button>
-      </div>
 
-      {/* 中间区：预览 + 侧栏 */}
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        <ComponentLibrary />
+        <div className="mx-1 h-4 w-px bg-black/10 dark:bg-white/10" />
+
+        {/* 主题切换按钮 - 右上角 */}
+        <button
+          onClick={toggleTheme}
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-all hover:bg-black/5 hover:text-amber-500 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-amber-300"
+          title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
+          aria-label="切换主题"
+        >
+          {theme === "dark" ? (
+            // 月亮图标（当前深色）
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" />
+            </svg>
+          ) : (
+            // 太阳图标（当前浅色）
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="4" />
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+            </svg>
+          )}
+        </button>
+      </header>
+
+      {/* ===== 中间区：左侧素材 + 中间预览 + 右侧属性 ===== */}
+      <div className="flex min-h-0 flex-1">
+        <ComponentLibrary collapsed={leftCollapsed} />
         <Preview />
-        <PropertiesPanel />
+        <PropertiesPanel collapsed={rightCollapsed} />
       </div>
 
-      {/* 底部：播放控件 + 时间线 */}
+      {/* ===== 底部：播放控件 + 时间轴 ===== */}
       <Timeline />
 
       {/* 导出对话框 */}
       {dialogOpen && <ExportDialog />}
     </div>
   );
-};
-
-const topbarBtn: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-  background: "transparent",
-  border: "1px solid transparent",
-  borderRadius: 6,
-  padding: "4px 10px",
-  cursor: "pointer",
-  fontSize: 12,
 };
 
 const ExportDialog: React.FC = () => {
@@ -458,90 +422,51 @@ const ExportDialog: React.FC = () => {
 
   return (
     <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.6)",
-        backdropFilter: "blur(4px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 100,
-      }}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-md animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) setDialogOpen(false);
       }}
     >
-      <div
-        style={{
-          background: "#1a1a1e",
-          border: "1px solid rgba(255,255,255,0.08)",
-          borderRadius: 12,
-          padding: 24,
-          minWidth: 400,
-          maxWidth: 520,
-          maxHeight: "80vh",
-          overflowY: "auto",
-          color: "#eee",
-          boxShadow: "0 16px 48px rgba(0,0,0,0.5)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 16,
-          }}
-        >
-          <span style={{ fontWeight: 700, fontSize: 16 }}>导出任务</span>
-          <div style={{ display: "flex", gap: 8 }}>
+      <div className="glass max-h-[80vh] min-w-[400px] max-w-[520px] overflow-y-auto rounded-2xl border border-black/5 bg-white/80 p-6 text-slate-800 shadow-2xl dark:border-white/10 dark:bg-[#1a1a1e]/80 dark:text-gray-200">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-base font-bold">导出任务</span>
+          <div className="flex gap-2">
             {!hasActive && jobs.length > 0 && (
-              <button onClick={clearFinished} style={dialogBtn}>
+              <button
+                onClick={clearFinished}
+                className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+              >
                 清除已完成
               </button>
             )}
-            <button onClick={() => setDialogOpen(false)} style={dialogBtn}>
+            <button
+              onClick={() => setDialogOpen(false)}
+              className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+            >
               {hasActive ? "隐藏" : "关闭"}
             </button>
           </div>
         </div>
 
         {jobs.length === 0 ? (
-          <div style={{ color: "#555", padding: "20px 0", textAlign: "center" }}>
-            暂无导出任务，点击"导出 MP4"开始
+          <div className="py-5 text-center text-sm text-slate-400 dark:text-gray-500">
+            暂无导出任务，点击“导出 MP4”开始
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div className="flex flex-col gap-2.5">
             {jobs.map((job) => (
               <div
                 key={job.jobId}
-                style={{
-                  background: "#121215",
-                  border: "1px solid rgba(255,255,255,0.06)",
-                  borderRadius: 8,
-                  padding: 12,
-                }}
+                className="rounded-lg border border-black/5 bg-white/60 p-3 dark:border-white/5 dark:bg-white/5"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <span style={{ fontSize: 12, color: "#aaa" }}>
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 dark:text-gray-400">
                     {job.label}
                   </span>
                   {job.status !== "rendering" && (
                     <button
                       onClick={() => removeJob(job.jobId)}
-                      style={{
-                        ...dialogBtn,
-                        padding: "2px 8px",
-                        fontSize: 10,
-                      }}
+                      className="rounded px-2 py-0.5 text-[10px] text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-gray-500"
                       title="Remove from list"
                     >
                       ✕
@@ -551,57 +476,24 @@ const ExportDialog: React.FC = () => {
 
                 {job.status === "rendering" && (
                   <div>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: 4,
-                        background: "#262626",
-                        borderRadius: 2,
-                        overflow: "hidden",
-                      }}
-                    >
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
                       <div
-                        style={{
-                          width: `${Math.round(job.progress * 100)}%`,
-                          height: "100%",
-                          background:
-                            "linear-gradient(90deg,#6366f1,#8b5cf6)",
-                          borderRadius: 2,
-                          transition: "width 0.3s",
-                        }}
+                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-300"
+                        style={{ width: `${Math.round(job.progress * 100)}%` }}
                       />
                     </div>
-                    <div
-                      style={{
-                        marginTop: 4,
-                        fontSize: 10,
-                        color: "#666",
-                        textAlign: "right",
-                      }}
-                    >
+                    <div className="mt-1 text-right text-[10px] text-slate-400 dark:text-gray-500">
                       {Math.round(job.progress * 100)}%
                     </div>
                   </div>
                 )}
 
                 {job.status === "done" && job.url && (
-                  <div style={{ display: "flex", gap: 8 }}>
+                  <div className="flex gap-2">
                     <a
                       href={job.url}
                       download
-                      style={{
-                        flex: 1,
-                        display: "block",
-                        padding: "6px 10px",
-                        background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                        border: "none",
-                        borderRadius: 6,
-                        color: "#fff",
-                        textDecoration: "none",
-                        textAlign: "center",
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
+                      className="flex-1 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 px-2.5 py-1.5 text-center text-xs font-semibold text-white transition-transform hover:-translate-y-px"
                     >
                       下载 MP4
                     </a>
@@ -609,15 +501,7 @@ const ExportDialog: React.FC = () => {
                       href={job.url}
                       target="_blank"
                       rel="noreferrer"
-                      style={{
-                        padding: "6px 10px",
-                        background: "#262626",
-                        border: "1px solid rgba(255,255,255,0.08)",
-                        borderRadius: 6,
-                        color: "#aaa",
-                        textDecoration: "none",
-                        fontSize: 12,
-                      }}
+                      className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
                     >
                       打开
                     </a>
@@ -625,20 +509,7 @@ const ExportDialog: React.FC = () => {
                 )}
 
                 {job.status === "error" && (
-                  <pre
-                    style={{
-                      margin: 0,
-                      background: "rgba(239,68,68,0.08)",
-                      padding: 8,
-                      borderRadius: 4,
-                      fontSize: 11,
-                      color: "#fca5a5",
-                      whiteSpace: "pre-wrap",
-                      wordBreak: "break-word",
-                      maxHeight: 120,
-                      overflow: "auto",
-                    }}
-                  >
+                  <pre className="max-h-30 overflow-auto whitespace-pre-wrap break-words rounded bg-red-500/10 p-2 text-[11px] text-red-500 dark:text-red-300">
                     {job.message}
                   </pre>
                 )}
@@ -647,24 +518,12 @@ const ExportDialog: React.FC = () => {
           </div>
         )}
 
-        <div style={{ marginTop: 16, fontSize: 10, color: "#444", textAlign: "center" }}>
-          {hasActive
-            ? "关闭对话框不会取消后台导出任务"
-            : ""}
+        <div className="mt-4 text-center text-[10px] text-slate-400 dark:text-gray-600">
+          {hasActive ? "关闭对话框不会取消后台导出任务" : ""}
         </div>
       </div>
     </div>
   );
-};
-
-const dialogBtn: React.CSSProperties = {
-  background: "#262626",
-  color: "#ccc",
-  border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 6,
-  padding: "4px 10px",
-  fontSize: 11,
-  cursor: "pointer",
 };
 
 /** 将帧数转换为 SRT 时间格式 HH:MM:SS,mmm */

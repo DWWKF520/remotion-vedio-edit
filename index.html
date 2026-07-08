@@ -3,19 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Remotion Multi-Track Editor</title>
-    <style>
-      html,
-      body,
-      #root {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #0a0a0a;
-      }
-    </style>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Remotion Video Editor</title>
+    <!-- 在首屏渲染前应用持久化主题，避免明暗切换闪烁 -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("video-editor-theme");
+          if (t === "dark") {
+            document.documentElement.classList.add("dark");
+          } else {
+            document.documentElement.classList.remove("dark");
+          }
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
