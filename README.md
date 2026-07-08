@@ -6,6 +6,10 @@
   <img src="./public/favicon.svg" width="72" height="72" alt="logo" />
 </p>
 
+<p align="center">
+  <video src="./public/Recording 2026-07-08 121614.mp4" controls></video>
+</p>
+
 ## 特性
 
 - **多轨时间线**：背景轨 + 叠加轨，支持增加 / 删除 / 锁定 / 静音轨道
