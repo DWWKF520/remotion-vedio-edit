@@ -1,5 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
+import "./editor/auto-register-components";
 import { EditorApp } from "./editor/editor";
 import "./index.css";
 

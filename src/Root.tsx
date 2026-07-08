@@ -1,4 +1,5 @@
 import "./index.css";
+import "./editor/auto-register-components";
 import { Composition } from "remotion";
 import { HelloWorld, myCompSchema } from "./components/HelloWorld";
 import { Logo, myCompSchema2 } from "./components/HelloWorld/Logo";
