@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <video src="./public/Recording 2026-07-08 121614.mp4" controls></video>
+  <video src="https://github.com/DWWKF520/my-video/blob/main/Recording.mp4" controls></video>
 </p>
 
 ## 特性
