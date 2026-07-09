@@ -11,6 +11,13 @@ export interface Clip {
   start: number;
   /** 持续帧数 */
   duration: number;
+  /**
+   * 组件内容源偏移（帧）。
+   * 表示组件内部 useCurrentFrame() 应从第几帧开始播放。
+   * 分割/向前裁剪时会被设置，让后半段接着前半段播放，而不是从头开始。
+   * 默认 0。
+   */
+  sourceStart?: number;
   /** 透传给 Remotion 组件的 props */
   props: Record<string, unknown>;
 }

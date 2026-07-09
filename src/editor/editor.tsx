@@ -29,6 +29,9 @@ import { useThemeStore } from "./theme-store";
 export const EditorApp: React.FC = () => {
   const selectedClipId = useEditorStore((s) => s.selectedClipId);
   const removeClip = useEditorStore((s) => s.removeClip);
+  const splitClip = useEditorStore((s) => s.splitClip);
+  const trimClipStart = useEditorStore((s) => s.trimClipStart);
+  const trimClipEnd = useEditorStore((s) => s.trimClipEnd);
   const currentFrame = useEditorStore((s) => s.currentFrame);
   const totalDuration = useEditorStore((s) => s.totalDuration);
   const togglePlay = useEditorStore((s) => s.togglePlay);
@@ -136,6 +139,42 @@ export const EditorApp: React.FC = () => {
       ) {
         e.preventDefault();
         removeClip(selectedClipId);
+      } else if (
+        (e.key === "s" || e.key === "S") &&
+        selectedClipId
+      ) {
+        // 分割：在播放头位置切成两段
+        const clip = useEditorStore.getState().clips[selectedClipId];
+        if (
+          clip &&
+          currentFrame > clip.start &&
+          currentFrame < clip.start + clip.duration
+        ) {
+          e.preventDefault();
+          splitClip(selectedClipId, currentFrame);
+        }
+      } else if (e.key === "[" && selectedClipId) {
+        // 向前裁剪：删除播放头之前的部分
+        const clip = useEditorStore.getState().clips[selectedClipId];
+        if (
+          clip &&
+          currentFrame > clip.start &&
+          currentFrame < clip.start + clip.duration
+        ) {
+          e.preventDefault();
+          trimClipStart(selectedClipId, currentFrame);
+        }
+      } else if (e.key === "]" && selectedClipId) {
+        // 向后裁剪：删除播放头之后的部分
+        const clip = useEditorStore.getState().clips[selectedClipId];
+        if (
+          clip &&
+          currentFrame > clip.start &&
+          currentFrame < clip.start + clip.duration
+        ) {
+          e.preventDefault();
+          trimClipEnd(selectedClipId, currentFrame);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -145,6 +184,9 @@ export const EditorApp: React.FC = () => {
     totalDuration,
     selectedClipId,
     removeClip,
+    splitClip,
+    trimClipStart,
+    trimClipEnd,
     togglePlay,
     setCurrentFrame,
   ]);

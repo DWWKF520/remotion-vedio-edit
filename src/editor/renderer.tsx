@@ -55,7 +55,15 @@ export const CompositionRenderer: React.FC<CompositionRendererProps> = ({
                   durationInFrames={clip.duration}
                   name={clip.name}
                 >
-                  <Comp {...clip.props} />
+                  {/* 内层 Sequence：通过负 from 让组件内部 useCurrentFrame()
+                      从 sourceStart 开始，使分割/裁剪后的后半段接着原内容播放，
+                      而不是从头开始。 */}
+                  <Sequence
+                    from={-(clip.sourceStart ?? 0)}
+                    durationInFrames={clip.duration + (clip.sourceStart ?? 0)}
+                  >
+                    <Comp {...clip.props} />
+                  </Sequence>
                 </Sequence>
               );
             })}

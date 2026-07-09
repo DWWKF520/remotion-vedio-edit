@@ -412,6 +412,9 @@ export const Timeline: React.FC = () => {
   const updateClipTiming = useEditorStore((s) => s.updateClipTiming);
   const moveClipToTrack = useEditorStore((s) => s.moveClipToTrack);
   const removeClip = useEditorStore((s) => s.removeClip);
+  const splitClip = useEditorStore((s) => s.splitClip);
+  const trimClipStart = useEditorStore((s) => s.trimClipStart);
+  const trimClipEnd = useEditorStore((s) => s.trimClipEnd);
   const addTrack = useEditorStore((s) => s.addTrack);
   const removeTrack = useEditorStore((s) => s.removeTrack);
   const toggleTrackLocked = useEditorStore((s) => s.toggleTrackLocked);
@@ -705,21 +708,75 @@ export const Timeline: React.FC = () => {
           />
         </div>
 
-        {/* 选中片段信息 */}
-        {selectedClipId && clips[selectedClipId] && (
-          <div className="ml-2 flex items-center gap-2 rounded bg-violet-500/10 px-2 py-0.5 text-[11px]">
-            <span className="text-violet-600 dark:text-violet-300">
-              {clips[selectedClipId].name}
-            </span>
-            <button
-              onClick={() => removeClip(selectedClipId)}
-              className="rounded bg-red-500/15 px-1.5 py-0.5 text-[10px] text-red-500 transition-colors hover:bg-red-500/25 dark:text-red-300"
-              title="删除 (Del)"
-            >
-              删除
-            </button>
-          </div>
-        )}
+        {/* 选中片段信息 + 分割/裁剪操作 */}
+        {selectedClipId && clips[selectedClipId] && (() => {
+          const sel = clips[selectedClipId];
+          const clipEnd = sel.start + sel.duration;
+          // 播放头是否落在 clip 内部（分割/裁剪的前提）
+          const canSplit =
+            currentFrame > sel.start && currentFrame < clipEnd;
+          return (
+            <div className="ml-2 flex items-center gap-1 rounded bg-violet-500/10 px-1.5 py-0.5">
+              <span className="px-1 text-[11px] text-violet-600 dark:text-violet-300">
+                {sel.name}
+              </span>
+              {/* 分割：在播放头位置切成两段 */}
+              <button
+                onClick={() => canSplit && splitClip(selectedClipId, currentFrame)}
+                disabled={!canSplit}
+                className="flex h-6 w-6 items-center justify-center rounded text-violet-500 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-violet-300"
+                title="在播放头位置分割 (S)"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="6" cy="6" r="3" />
+                  <circle cx="6" cy="18" r="3" />
+                  <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                  <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                  <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                </svg>
+              </button>
+              {/* 向前裁剪：删除播放头之前的部分（保留右侧） */}
+              <button
+                onClick={() => canSplit && trimClipStart(selectedClipId, currentFrame)}
+                disabled={!canSplit}
+                className="flex h-6 w-6 items-center justify-center rounded text-amber-500 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-amber-300"
+                title="向前裁剪：删除播放头之前的部分 ([)"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="6" width="18" height="12" rx="1" />
+                  <rect x="3" y="6" width="7" height="12" fill="currentColor" stroke="none" opacity="0.35" />
+                  <line x1="10" y1="3" x2="10" y2="21" strokeDasharray="2 2" />
+                </svg>
+              </button>
+              {/* 向后裁剪：删除播放头之后的部分（保留左侧） */}
+              <button
+                onClick={() => canSplit && trimClipEnd(selectedClipId, currentFrame)}
+                disabled={!canSplit}
+                className="flex h-6 w-6 items-center justify-center rounded text-amber-500 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-amber-300"
+                title="向后裁剪：删除播放头之后的部分 (])"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="6" width="18" height="12" rx="1" />
+                  <rect x="14" y="6" width="7" height="12" fill="currentColor" stroke="none" opacity="0.35" />
+                  <line x1="14" y1="3" x2="14" y2="21" strokeDasharray="2 2" />
+                </svg>
+              </button>
+              {/* 删除 */}
+              <button
+                onClick={() => removeClip(selectedClipId)}
+                className="flex h-6 w-6 items-center justify-center rounded text-red-500 transition-colors hover:bg-red-500/20 dark:text-red-300"
+                title="删除 (Del)"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ===== 时间线轨道区 ===== */}

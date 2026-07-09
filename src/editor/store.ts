@@ -72,6 +72,12 @@ interface EditorStore {
   moveClipToTrack: (clipId: string, targetTrackId: string) => void;
   addTrack: (kind?: Track["kind"]) => void;
   removeTrack: (trackId: string) => void;
+  /** 在指定帧位置将 clip 分割成两段（剪映风格 split） */
+  splitClip: (clipId: string, atFrame: number) => void;
+  /** 向前裁剪：删除 clip 从开始到 toFrame 的部分（保留后半段） */
+  trimClipStart: (clipId: string, toFrame: number) => void;
+  /** 向后裁剪：删除 clip 从 fromFrame 到结尾的部分（保留前半段） */
+  trimClipEnd: (clipId: string, fromFrame: number) => void;
 
   // 播放控制（操作 Player 实例）
   setCurrentFrame: (frame: number) => void;
@@ -205,6 +211,98 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       return {
         tracks: newTracks,
         totalDuration: recomputePreviewDuration(newTracks, s.clips),
+      };
+    }),
+
+  splitClip: (clipId, atFrame) =>
+    set((s) => {
+      const c = s.clips[clipId];
+      if (!c) return s;
+      const end = c.start + c.duration;
+      // 分割点必须严格落在 clip 内部
+      if (atFrame <= c.start || atFrame >= end) return s;
+
+      // 找到 clip 所在轨道
+      const track = s.tracks.find((t) => t.clipIds.includes(clipId));
+      if (!track) return s;
+
+      const origSourceStart = c.sourceStart ?? 0;
+      const leftDuration = atFrame - c.start;
+
+      // 原 clip 缩短为前半段（sourceStart 不变，组件仍从原内容起点播放）
+      const leftClip: Clip = { ...c, duration: leftDuration };
+
+      // 新 clip 为后半段：组件内容接着前半段，sourceStart 偏移 leftDuration
+      const rightClip: Clip = {
+        ...c,
+        id: nanoid(),
+        start: atFrame,
+        duration: end - atFrame,
+        sourceStart: origSourceStart + leftDuration,
+        props: JSON.parse(JSON.stringify(c.props)) as Record<string, unknown>,
+      };
+
+      const newClips = {
+        ...s.clips,
+        [clipId]: leftClip,
+        [rightClip.id]: rightClip,
+      };
+
+      // 在轨道 clipIds 中，原 clip 之后插入新 clip
+      const newTracks = s.tracks.map((t) => {
+        if (t.id !== track.id) return t;
+        const idx = t.clipIds.indexOf(clipId);
+        const nextIds = [...t.clipIds];
+        nextIds.splice(idx + 1, 0, rightClip.id);
+        return { ...t, clipIds: nextIds };
+      });
+
+      return {
+        clips: newClips,
+        tracks: newTracks,
+        selectedClipId: rightClip.id,
+        totalDuration: recomputePreviewDuration(newTracks, newClips),
+      };
+    }),
+
+  trimClipStart: (clipId, toFrame) =>
+    set((s) => {
+      const c = s.clips[clipId];
+      if (!c) return s;
+      const end = c.start + c.duration;
+      // toFrame 必须严格落在 clip 内部（保留至少 1 帧的后半段）
+      if (toFrame <= c.start || toFrame >= end) return s;
+      // 裁掉前半段后，组件内容源要相应偏移，避免后半段从头播放
+      const origSourceStart = c.sourceStart ?? 0;
+      const next: Clip = {
+        ...c,
+        start: toFrame,
+        duration: end - toFrame,
+        sourceStart: origSourceStart + (toFrame - c.start),
+      };
+      const newClips = { ...s.clips, [clipId]: next };
+      return {
+        clips: newClips,
+        totalDuration: recomputePreviewDuration(s.tracks, newClips),
+      };
+    }),
+
+  trimClipEnd: (clipId, fromFrame) =>
+    set((s) => {
+      const c = s.clips[clipId];
+      if (!c) return s;
+      const end = c.start + c.duration;
+      // fromFrame 必须严格落在 clip 内部（保留至少 1 帧的前半段）
+      if (fromFrame <= c.start || fromFrame >= end) return s;
+      // 只裁掉尾部，前半段内容从原起点播放，sourceStart 不变
+      const next: Clip = {
+        ...c,
+        duration: fromFrame - c.start,
+      };
+      const newClips = { ...s.clips, [clipId]: next };
+      return {
+        clips: newClips,
+        totalDuration: recomputePreviewDuration(s.tracks, newClips),
       };
     }),
 
