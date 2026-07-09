@@ -11,7 +11,7 @@ import { setPlayerRef, useEditorStore } from "./store";
  *
  * 放大并加边框，占据中间最大视觉面积。
  */
-export const Preview: React.FC = () => {
+export const Preview: React.FC = React.memo(() => {
   const width = useEditorStore((s) => s.width);
   const height = useEditorStore((s) => s.height);
   const totalDuration = useEditorStore((s) => s.totalDuration);
@@ -20,6 +20,8 @@ export const Preview: React.FC = () => {
   const onPlayStateChanged = useEditorStore((s) => s.onPlayStateChanged);
 
   const ref = useRef<PlayerRef>(null);
+  const callbacksRef = useRef({ onFrameChange, onPlayStateChanged });
+  callbacksRef.current = { onFrameChange, onPlayStateChanged };
 
   // 把 playerRef 注入 store
   useEffect(() => {
@@ -31,13 +33,11 @@ export const Preview: React.FC = () => {
   useEffect(() => {
     const p = ref.current;
     if (!p) return;
-
     const onFrame = (e: { detail: { frame: number } }) => {
-      onFrameChange(e.detail.frame);
+      callbacksRef.current.onFrameChange(e.detail.frame);
     };
-    const onPlay = () => onPlayStateChanged(true);
-    const onPause = () => onPlayStateChanged(false);
-
+    const onPlay = () => callbacksRef.current.onPlayStateChanged(true);
+    const onPause = () => callbacksRef.current.onPlayStateChanged(false);
     p.addEventListener("frameupdate", onFrame);
     p.addEventListener("play", onPlay);
     p.addEventListener("pause", onPause);
@@ -46,7 +46,7 @@ export const Preview: React.FC = () => {
       p.removeEventListener("play", onPlay);
       p.removeEventListener("pause", onPause);
     };
-  }, [onFrameChange, onPlayStateChanged]);
+  }, []); // empty deps — stable event subscription
 
   return (
     <div className="relative flex min-h-0 flex-1 items-center justify-center bg-slate-200/50 p-4 dark:bg-[#050508]">
@@ -70,4 +70,4 @@ export const Preview: React.FC = () => {
       </div>
     </div>
   );
-};
+});

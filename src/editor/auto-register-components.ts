@@ -12,3 +12,4 @@ import "../components/Wechat2DRender/manifest";
 import "../components/RulerProgressRender/manifest";
 import "../components/LightSpotlight/manifest";
 import "../components/SalaryCompare/manifest";
+import "../components/SpeakingPerson/manifest";

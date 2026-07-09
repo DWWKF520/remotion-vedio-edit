@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import type { Clip } from "./types";
@@ -107,6 +107,297 @@ const defaultClipColor = {
   border: "#f97316",
 };
 
+// ---------------------------------------------------------------------------
+// Optimization 1: ClipBlock — memoized sub-component for per-clip rendering.
+// Prevents ALL clips from re-rendering when any single clip's selection state
+// changes, since React.memo does a shallow-equality check on all props.
+// ---------------------------------------------------------------------------
+interface ClipBlockProps {
+  clip: Clip;
+  trackId: string;
+  isSelected: boolean;
+  isLocked: boolean;
+  pxPerFrame: number;
+  color: { bg: string; bgSelected: string; border: string };
+  startClipDrag: (
+    e: React.MouseEvent,
+    clip: Clip,
+    mode: "move" | "resize-r" | "resize-l",
+    trackId: string,
+  ) => void;
+  selectClip: (clipId: string | null) => void;
+}
+
+const ClipBlock = React.memo(function ClipBlock({
+  clip,
+  trackId,
+  isSelected,
+  isLocked,
+  pxPerFrame,
+  color,
+  startClipDrag,
+  selectClip,
+}: ClipBlockProps) {
+  const left = frameToX(clip.start, pxPerFrame);
+  const width = Math.max(8, frameToX(clip.duration, pxPerFrame));
+
+  return (
+    <div
+      draggable={!isLocked}
+      onDragStart={(e) => {
+        e.dataTransfer.setData("text/plain", clip.id);
+        e.dataTransfer.effectAllowed = "move";
+      }}
+      onMouseDown={(e) =>
+        !isLocked && startClipDrag(e, clip, "move", trackId)
+      }
+      onClick={(e) => {
+        e.stopPropagation();
+        selectClip(clip.id);
+      }}
+      className="absolute top-1 overflow-hidden rounded-md border transition-[box-shadow,border-color] duration-150"
+      style={{
+        left,
+        width,
+        height: TRACK_HEIGHT - 8,
+        background: isSelected ? color.bgSelected : color.bg,
+        borderColor: isSelected
+          ? color.border
+          : "rgba(255,255,255,0.08)",
+        cursor: isLocked ? "not-allowed" : "move",
+        boxShadow: isSelected
+          ? `0 0 0 2px ${color.border}40, 0 2px 8px ${color.border}30`
+          : "0 1px 3px rgba(0,0,0,0.2)",
+        userSelect: "none",
+      }}
+      title={`${clip.name}  (${clip.start} → ${clip.start + clip.duration})`}
+    >
+      {/* 左边缘 resize */}
+      <div
+        onMouseDown={(e) =>
+          !isLocked &&
+          startClipDrag(e, clip, "resize-l", trackId)
+        }
+        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-md transition-colors hover:bg-white/20"
+        style={{ cursor: isLocked ? "not-allowed" : "ew-resize" }}
+      />
+      {/* 片段内容 */}
+      <div
+        className="overflow-hidden whitespace-nowrap py-0 px-2.5 font-semibold text-white"
+        style={{
+          textShadow: "0 1px 2px rgba(0,0,0,0.3)",
+          fontSize: 10,
+          lineHeight: `${TRACK_HEIGHT - 8}px`,
+          textOverflow: "ellipsis",
+        }}
+      >
+        {clip.name}
+      </div>
+      {/* 右边缘 resize */}
+      <div
+        onMouseDown={(e) =>
+          !isLocked &&
+          startClipDrag(e, clip, "resize-r", trackId)
+        }
+        className="absolute right-0 top-0 bottom-0 w-1.5 rounded-r-md transition-colors hover:bg-white/20"
+        style={{ cursor: isLocked ? "not-allowed" : "ew-resize" }}
+      />
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Optimization 2: TrackRow — memoized sub-component for per-track rendering.
+// Prevents all tracks from re-rendering when only one track's state changes.
+// ---------------------------------------------------------------------------
+interface TrackRowProps {
+  track: {
+    id: string;
+    name: string;
+    kind: string;
+    locked: boolean;
+    muted: boolean;
+    clipIds: string[];
+  };
+  clips: Record<string, Clip>;
+  timelineWidth: number;
+  pxPerFrame: number;
+  selectedClipId: string | null;
+  onClipDropToTrack: (trackId: string, clipId: string) => void;
+  startClipDrag: (
+    e: React.MouseEvent,
+    clip: Clip,
+    mode: "move" | "resize-r" | "resize-l",
+    trackId: string,
+  ) => void;
+  selectClip: (clipId: string | null) => void;
+}
+
+const TrackRow = React.memo(function TrackRow({
+  track,
+  clips,
+  timelineWidth,
+  pxPerFrame,
+  selectedClipId,
+  onClipDropToTrack,
+  startClipDrag,
+  selectClip,
+}: TrackRowProps) {
+  const locked = track.locked;
+
+  return (
+    <div
+      className="relative border-b border-black/5 dark:border-white/5"
+      style={{
+        height: TRACK_HEIGHT,
+        width: Math.max(timelineWidth, 800),
+        background: track.muted
+          ? "repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(100,116,139,0.06) 6px,rgba(100,116,139,0.06) 12px)"
+          : undefined,
+        opacity: track.muted ? 0.5 : 1,
+      }}
+      onDragOver={(e) => {
+        if (!locked) e.preventDefault();
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        const clipId = e.dataTransfer.getData("text/plain");
+        if (clipId && !locked) {
+          onClipDropToTrack(track.id, clipId);
+        }
+      }}
+    >
+      {track.clipIds.map((cid) => {
+        const clip = clips[cid];
+        if (!clip) return null;
+        const def = getComponentDef(clip.componentKey);
+        const selected = cid === selectedClipId;
+        const color = clipColors[def?.key ?? ""] ?? defaultClipColor;
+
+        // Optimization 7: key stability verified — cid is a stable string id
+        return (
+          <ClipBlock
+            key={cid}
+            clip={clip}
+            trackId={track.id}
+            isSelected={selected}
+            isLocked={locked}
+            pxPerFrame={pxPerFrame}
+            color={color}
+            startClipDrag={startClipDrag}
+            selectClip={selectClip}
+          />
+        );
+      })}
+    </div>
+  );
+});
+
+// ---------------------------------------------------------------------------
+// Optimization 3: TrackHeader — memoized sub-component for the track head.
+// Prevents all track headers from re-rendering when only one track changes.
+// ---------------------------------------------------------------------------
+interface TrackHeaderProps {
+  track: {
+    id: string;
+    name: string;
+    kind: string;
+    locked: boolean;
+    muted: boolean;
+    clipIds: string[];
+  };
+  toggleTrackMuted: (trackId: string) => void;
+  toggleTrackLocked: (trackId: string) => void;
+  removeTrack: (trackId: string) => void;
+}
+
+const TrackHeader = React.memo(function TrackHeader({
+  track,
+  toggleTrackMuted,
+  toggleTrackLocked,
+  removeTrack,
+}: TrackHeaderProps) {
+  return (
+    <div
+      className={`flex flex-col justify-center gap-0.5 border-b border-black/5 px-2 py-1 dark:border-white/5 ${
+        track.muted ? "bg-black/[0.02] dark:bg-white/[0.01]" : ""
+      }`}
+      style={{ height: TRACK_HEIGHT }}
+    >
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex items-center gap-1">
+          <div
+            className="h-3 w-[3px] rounded-sm"
+            style={{
+              background:
+                track.kind === "background"
+                  ? "linear-gradient(180deg, #38bdf8, #0284c7)"
+                  : "linear-gradient(180deg, #fbbf24, #d97706)",
+            }}
+          />
+          <span
+            className={`text-[11px] font-semibold ${
+              track.muted
+                ? "text-slate-400 dark:text-gray-600"
+                : "text-slate-700 dark:text-gray-200"
+            }`}
+          >
+            {track.name}
+          </span>
+        </div>
+        <div className="flex gap-0.5">
+          <button
+            title={track.muted ? "显示" : "隐藏"}
+            onClick={() => toggleTrackMuted(track.id)}
+            className="track-icon-btn"
+          >
+            {track.muted ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <path d="M23 1L1 23" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+            )}
+          </button>
+          <button
+            title={track.locked ? "解锁" : "锁定"}
+            onClick={() => toggleTrackLocked(track.id)}
+            className="track-icon-btn"
+          >
+            {track.locked ? (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0110 0v4" />
+              </svg>
+            ) : (
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 019.9-1" />
+              </svg>
+            )}
+          </button>
+          <button
+            title="删除轨道"
+            onClick={() => removeTrack(track.id)}
+            className="track-icon-btn"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <span className="pl-[7px] text-[9px] text-slate-400 dark:text-gray-600">
+        {track.clipIds.length} 个片段
+      </span>
+    </div>
+  );
+});
+
 export const Timeline: React.FC = () => {
   const tracks = useEditorStore((s) => s.tracks);
   const clips = useEditorStore((s) => s.clips);
@@ -143,6 +434,16 @@ export const Timeline: React.FC = () => {
 
   const timelineWidth = frameToX(totalDuration, pxPerFrame);
 
+  // ---------------------------------------------------------------------------
+  // Optimization 4: Memoize ruler tick computation so a new array is not
+  // allocated on every render.
+  // ---------------------------------------------------------------------------
+  const rulerTicks = useMemo(() => {
+    return Array.from({ length: Math.ceil(totalDuration / 30) + 1 }).map(
+      (_, i) => i * 30,
+    );
+  }, [totalDuration]);
+
   const onRulerMouseDown = useCallback(
     (e: React.MouseEvent) => {
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -176,6 +477,12 @@ export const Timeline: React.FC = () => {
     },
     [pxPerFrame, setCurrentFrame],
   );
+
+  // ---------------------------------------------------------------------------
+  // Optimization 5 (verification): All callbacks access scrollRef via
+  // scrollRef.current at call-time (not captured at creation time), so there
+  // are no stale closure bugs. The ref value is always fresh when read.
+  // ---------------------------------------------------------------------------
 
   const startClipDrag = useCallback(
     (
@@ -233,7 +540,13 @@ export const Timeline: React.FC = () => {
           newDuration = Math.max(1, ds.origDuration - dFrames);
         }
 
-        // 多轨对齐吸附（6px 范围内显示金色垂直参考线）
+        // ---------------------------------------------------------------------------
+        // Optimization 6 (snapTargets): We intentionally use
+        // useEditorStore.getState().clips here instead of the `clips` variable
+        // captured in the enclosing closure. This reads the *latest* store state
+        // on every mouse-move tick without re-creating this callback whenever
+        // clips change, which is critical for drag performance.
+        // ---------------------------------------------------------------------------
         const snapThreshold = Math.max(1, Math.round(6 / pxPerFrame));
         const allClips = Object.values(
           useEditorStore.getState().clips,
@@ -420,85 +733,15 @@ export const Timeline: React.FC = () => {
             className="border-b border-black/5 dark:border-white/8"
             style={{ height: RULER_HEIGHT }}
           />
+          {/* Optimization 3 & 7: TrackHeader is memoized; key=t.id is stable */}
           {tracks.map((t) => (
-            <div
+            <TrackHeader
               key={t.id}
-              className={`flex flex-col justify-center gap-0.5 border-b border-black/5 px-2 py-1 dark:border-white/5 ${
-                t.muted ? "bg-black/[0.02] dark:bg-white/[0.01]" : ""
-              }`}
-              style={{ height: TRACK_HEIGHT }}
-            >
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex items-center gap-1">
-                  <div
-                    className="h-3 w-[3px] rounded-sm"
-                    style={{
-                      background:
-                        t.kind === "background"
-                          ? "linear-gradient(180deg, #38bdf8, #0284c7)"
-                          : "linear-gradient(180deg, #fbbf24, #d97706)",
-                    }}
-                  />
-                  <span
-                    className={`text-[11px] font-semibold ${
-                      t.muted
-                        ? "text-slate-400 dark:text-gray-600"
-                        : "text-slate-700 dark:text-gray-200"
-                    }`}
-                  >
-                    {t.name}
-                  </span>
-                </div>
-                <div className="flex gap-0.5">
-                  <button
-                    title={t.muted ? "显示" : "隐藏"}
-                    onClick={() => toggleTrackMuted(t.id)}
-                    className="track-icon-btn"
-                  >
-                    {t.muted ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <path d="M23 1L1 23" />
-                      </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                    )}
-                  </button>
-                  <button
-                    title={t.locked ? "解锁" : "锁定"}
-                    onClick={() => toggleTrackLocked(t.id)}
-                    className="track-icon-btn"
-                  >
-                    {t.locked ? (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 0110 0v4" />
-                      </svg>
-                    ) : (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                        <path d="M7 11V7a5 5 0 019.9-1" />
-                      </svg>
-                    )}
-                  </button>
-                  <button
-                    title="删除轨道"
-                    onClick={() => removeTrack(t.id)}
-                    className="track-icon-btn"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-              <span className="pl-[7px] text-[9px] text-slate-400 dark:text-gray-600">
-                {t.clipIds.length} 个片段
-              </span>
-            </div>
+              track={t}
+              toggleTrackMuted={toggleTrackMuted}
+              toggleTrackLocked={toggleTrackLocked}
+              removeTrack={removeTrack}
+            />
           ))}
         </div>
 
@@ -519,126 +762,33 @@ export const Timeline: React.FC = () => {
             }}
             onMouseDown={onRulerMouseDown}
           >
-            {Array.from({ length: Math.ceil(totalDuration / 30) + 1 }).map(
-              (_, i) => {
-                const frame = i * 30;
-                return (
-                  <div
-                    key={i}
-                    className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
-                    style={{ left: frameToX(frame, pxPerFrame) }}
-                  >
-                    {frame}
-                  </div>
-                );
-              },
-            )}
+            {/* Optimization 4: uses memoized rulerTicks instead of inline Array.from */}
+            {rulerTicks.map((frame, i) => (
+              <div
+                key={i}
+                className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
+                style={{ left: frameToX(frame, pxPerFrame) }}
+              >
+                {frame}
+              </div>
+            ))}
           </div>
 
           {/* 轨道行 */}
-          {tracks.map((track) => {
-            const locked = track.locked;
-            return (
-              <div
-                key={track.id}
-                className="relative border-b border-black/5 dark:border-white/5"
-                style={{
-                  height: TRACK_HEIGHT,
-                  width: Math.max(timelineWidth, 800),
-                  background: track.muted
-                    ? "repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(100,116,139,0.06) 6px,rgba(100,116,139,0.06) 12px)"
-                    : undefined,
-                  opacity: track.muted ? 0.5 : 1,
-                }}
-                onDragOver={(e) => {
-                  if (!locked) e.preventDefault();
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const clipId = e.dataTransfer.getData("text/plain");
-                  if (clipId && !locked) {
-                    onClipDropToTrack(track.id, clipId);
-                  }
-                }}
-              >
-                {track.clipIds.map((cid) => {
-                  const clip = clips[cid];
-                  if (!clip) return null;
-                  const def = getComponentDef(clip.componentKey);
-                  const left = frameToX(clip.start, pxPerFrame);
-                  const width = Math.max(8, frameToX(clip.duration, pxPerFrame));
-                  const selected = cid === selectedClipId;
-
-                  const color = clipColors[def?.key ?? ""] ?? defaultClipColor;
-
-                  return (
-                    <div
-                      key={cid}
-                      draggable={!locked}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData("text/plain", cid);
-                        e.dataTransfer.effectAllowed = "move";
-                      }}
-                      onMouseDown={(e) =>
-                        !locked && startClipDrag(e, clip, "move", track.id)
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        selectClip(cid);
-                      }}
-                      className="absolute top-1 overflow-hidden rounded-md border transition-[box-shadow,border-color] duration-150"
-                      style={{
-                        left,
-                        width,
-                        height: TRACK_HEIGHT - 8,
-                        background: selected ? color.bgSelected : color.bg,
-                        borderColor: selected
-                          ? color.border
-                          : "rgba(255,255,255,0.08)",
-                        cursor: locked ? "not-allowed" : "move",
-                        boxShadow: selected
-                          ? `0 0 0 2px ${color.border}40, 0 2px 8px ${color.border}30`
-                          : "0 1px 3px rgba(0,0,0,0.2)",
-                        userSelect: "none",
-                      }}
-                      title={`${clip.name}  (${clip.start} → ${clip.start + clip.duration})`}
-                    >
-                      {/* 左边缘 resize */}
-                      <div
-                        onMouseDown={(e) =>
-                          !locked &&
-                          startClipDrag(e, clip, "resize-l", track.id)
-                        }
-                        className="absolute left-0 top-0 bottom-0 w-1.5 rounded-l-md transition-colors hover:bg-white/20"
-                        style={{ cursor: locked ? "not-allowed" : "ew-resize" }}
-                      />
-                      {/* 片段内容 */}
-                      <div
-                        className="overflow-hidden whitespace-nowrap py-0 px-2.5 font-semibold text-white"
-                        style={{
-                          textShadow: "0 1px 2px rgba(0,0,0,0.3)",
-                          fontSize: 10,
-                          lineHeight: `${TRACK_HEIGHT - 8}px`,
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {clip.name}
-                      </div>
-                      {/* 右边缘 resize */}
-                      <div
-                        onMouseDown={(e) =>
-                          !locked &&
-                          startClipDrag(e, clip, "resize-r", track.id)
-                        }
-                        className="absolute right-0 top-0 bottom-0 w-1.5 rounded-r-md transition-colors hover:bg-white/20"
-                        style={{ cursor: locked ? "not-allowed" : "ew-resize" }}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            );
-          })}
+          {/* Optimization 2 & 7: TrackRow is memoized; key=track.id is stable */}
+          {tracks.map((track) => (
+            <TrackRow
+              key={track.id}
+              track={track}
+              clips={clips}
+              timelineWidth={timelineWidth}
+              pxPerFrame={pxPerFrame}
+              selectedClipId={selectedClipId}
+              onClipDropToTrack={onClipDropToTrack}
+              startClipDrag={startClipDrag}
+              selectClip={selectClip}
+            />
+          ))}
 
           {/* 多轨对齐参考线（金色） */}
           {snapFrame !== null && (
