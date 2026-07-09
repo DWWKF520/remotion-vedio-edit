@@ -407,6 +407,8 @@ export const Timeline: React.FC = () => {
   const currentFrame = useEditorStore((s) => s.currentFrame);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const fps = useEditorStore((s) => s.fps);
+  const canvasWidth = useEditorStore((s) => s.width);
+  const canvasHeight = useEditorStore((s) => s.height);
 
   const selectClip = useEditorStore((s) => s.selectClip);
   const updateClipTiming = useEditorStore((s) => s.updateClipTiming);
@@ -609,8 +611,15 @@ export const Timeline: React.FC = () => {
     [moveClipToTrack],
   );
 
+  // 竖屏画幅时减小时间线高度，把垂直空间让给预览区
+  const isPortrait = canvasHeight > canvasWidth;
+
   return (
-    <div className="flex h-[300px] min-h-[250px] flex-shrink-0 flex-col border-t border-black/5 bg-white/50 text-xs text-slate-700 dark:border-white/8 dark:bg-[#121215]/80 dark:text-gray-300">
+    <div
+      className={`flex flex-shrink-0 flex-col border-t border-black/5 bg-white/50 text-xs text-slate-700 dark:border-white/8 dark:bg-[#121215]/80 dark:text-gray-300 ${
+        isPortrait ? "h-[180px] min-h-[140px]" : "h-[300px] min-h-[250px]"
+      }`}
+    >
       {/* ===== 播放控件栏 - 剪映风格：居中的播放按钮 ===== */}
       <div className="glass flex h-10 flex-shrink-0 items-center gap-1.5 border-b border-black/5 bg-white/70 px-4 dark:border-white/8 dark:bg-[#161618]/70">
         {/* 左侧：添加轨道 - 次级按钮 */}
@@ -779,102 +788,113 @@ export const Timeline: React.FC = () => {
         })()}
       </div>
 
-      {/* ===== 时间线轨道区 ===== */}
-      <div className="flex min-h-0 flex-1">
-        {/* 左侧轨道头 */}
+      {/* ===== 时间线轨道区：统一滚动，左侧轨道头 sticky left-0 ===== */}
+      <div
+        ref={scrollRef}
+        className="min-h-0 flex-1 overflow-auto bg-slate-100/50 dark:bg-[#0e0e10]"
+      >
         <div
-          className="flex-shrink-0 border-r border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
-          style={{ width: TRACK_HEAD_WIDTH }}
-        >
-          <div
-            className="border-b border-black/5 dark:border-white/8"
-            style={{ height: RULER_HEIGHT }}
-          />
-          {/* Optimization 3 & 7: TrackHeader is memoized; key=t.id is stable */}
-          {tracks.map((t) => (
-            <TrackHeader
-              key={t.id}
-              track={t}
-              toggleTrackMuted={toggleTrackMuted}
-              toggleTrackLocked={toggleTrackLocked}
-              removeTrack={removeTrack}
-            />
-          ))}
-        </div>
-
-        {/* 右侧时间线滚动区 */}
-        <div
-          ref={scrollRef}
-          className="relative flex-1 overflow-auto bg-slate-100/50 dark:bg-[#0e0e10]"
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) selectClip(null);
+          className="relative flex"
+          style={{
+            width: TRACK_HEAD_WIDTH + Math.max(timelineWidth, 800),
+            minHeight: "100%",
           }}
         >
-          {/* 标尺 */}
+          {/* 左侧轨道头列：sticky left-0 横向固定，垂直跟随滚动（与轨道行同步） */}
           <div
-            className="sticky top-0 z-[5] cursor-pointer border-b border-black/5 bg-white/80 dark:border-white/8 dark:bg-[#161618]/90"
-            style={{
-              height: RULER_HEIGHT,
-              width: Math.max(timelineWidth, 800),
-            }}
-            onMouseDown={onRulerMouseDown}
+            className="sticky left-0 z-10 flex-shrink-0 border-r border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
+            style={{ width: TRACK_HEAD_WIDTH }}
           >
-            {/* Optimization 4: uses memoized rulerTicks instead of inline Array.from */}
-            {rulerTicks.map((frame, i) => (
-              <div
-                key={i}
-                className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
-                style={{ left: frameToX(frame, pxPerFrame) }}
-              >
-                {frame}
-              </div>
+            {/* 标尺占位：sticky top-0 垂直固定（与右侧标尺对齐） */}
+            <div
+              className="sticky top-0 z-10 border-b border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
+              style={{ height: RULER_HEIGHT }}
+            />
+            {/* Optimization 3 & 7: TrackHeader is memoized; key=t.id is stable */}
+            {tracks.map((t) => (
+              <TrackHeader
+                key={t.id}
+                track={t}
+                toggleTrackMuted={toggleTrackMuted}
+                toggleTrackLocked={toggleTrackLocked}
+                removeTrack={removeTrack}
+              />
             ))}
           </div>
 
-          {/* 轨道行 */}
-          {/* Optimization 2 & 7: TrackRow is memoized; key=track.id is stable */}
-          {tracks.map((track) => (
-            <TrackRow
-              key={track.id}
-              track={track}
-              clips={clips}
-              timelineWidth={timelineWidth}
-              pxPerFrame={pxPerFrame}
-              selectedClipId={selectedClipId}
-              onClipDropToTrack={onClipDropToTrack}
-              startClipDrag={startClipDrag}
-              selectClip={selectClip}
-            />
-          ))}
-
-          {/* 多轨对齐参考线（金色） */}
-          {snapFrame !== null && (
-            <div
-              className="pointer-events-none absolute top-0 bottom-0 z-[18] w-px bg-amber-400"
-              style={{
-                left: frameToX(snapFrame, pxPerFrame),
-                boxShadow: "0 0 6px rgba(251,191,36,0.6)",
-              }}
-            />
-          )}
-
-          {/* 播放头 */}
+          {/* 右侧内容列：relative 让 absolute 子元素（播放头/对齐线）跟着滚动 */}
           <div
-            onMouseDown={startPlayheadDrag}
-            className="absolute top-0 bottom-0 z-20 cursor-ew-resize"
-            style={{
-              left: frameToX(currentFrame, pxPerFrame) - 5,
-              width: 10,
+            className="relative flex-1"
+            style={{ width: Math.max(timelineWidth, 800) }}
+            onMouseDown={(e) => {
+              if (e.target === e.currentTarget) selectClip(null);
             }}
-            title="拖动播放头"
           >
-            {/* 中线 */}
-            <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
-            {/* 顶部手柄 */}
+            {/* 标尺 */}
             <div
-              className="absolute top-0 left-0 h-3 w-2.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_1px_3px_rgba(239,68,68,0.3)]"
-              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
-            />
+              className="sticky top-0 z-[5] cursor-pointer border-b border-black/5 bg-white/80 dark:border-white/8 dark:bg-[#161618]/90"
+              style={{
+                height: RULER_HEIGHT,
+              }}
+              onMouseDown={onRulerMouseDown}
+            >
+              {/* Optimization 4: uses memoized rulerTicks instead of inline Array.from */}
+              {rulerTicks.map((frame, i) => (
+                <div
+                  key={i}
+                  className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
+                  style={{ left: frameToX(frame, pxPerFrame) }}
+                >
+                  {frame}
+                </div>
+              ))}
+            </div>
+
+            {/* 轨道行 */}
+            {/* Optimization 2 & 7: TrackRow is memoized; key=track.id is stable */}
+            {tracks.map((track) => (
+              <TrackRow
+                key={track.id}
+                track={track}
+                clips={clips}
+                timelineWidth={timelineWidth}
+                pxPerFrame={pxPerFrame}
+                selectedClipId={selectedClipId}
+                onClipDropToTrack={onClipDropToTrack}
+                startClipDrag={startClipDrag}
+                selectClip={selectClip}
+              />
+            ))}
+
+            {/* 多轨对齐参考线（金色） */}
+            {snapFrame !== null && (
+              <div
+                className="pointer-events-none absolute top-0 bottom-0 z-[18] w-px bg-amber-400"
+                style={{
+                  left: frameToX(snapFrame, pxPerFrame),
+                  boxShadow: "0 0 6px rgba(251,191,36,0.6)",
+                }}
+              />
+            )}
+
+            {/* 播放头 */}
+            <div
+              onMouseDown={startPlayheadDrag}
+              className="absolute top-0 bottom-0 z-20 cursor-ew-resize"
+              style={{
+                left: frameToX(currentFrame, pxPerFrame) - 5,
+                width: 10,
+              }}
+              title="拖动播放头"
+            >
+              {/* 中线 */}
+              <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
+              {/* 顶部手柄 */}
+              <div
+                className="absolute top-0 left-0 h-3 w-2.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_1px_3px_rgba(239,68,68,0.3)]"
+                style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
+              />
+            </div>
           </div>
         </div>
       </div>

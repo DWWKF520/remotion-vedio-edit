@@ -90,6 +90,8 @@ interface EditorStore {
   setPxPerFrame: (px: number) => void;
   toggleTrackLocked: (trackId: string) => void;
   toggleTrackMuted: (trackId: string) => void;
+  /** 设置画布尺寸（同时影响预览和导出） */
+  setCanvasSize: (width: number, height: number) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -380,4 +382,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         t.id === trackId ? { ...t, muted: !t.muted } : t,
       ),
     })),
+
+  setCanvasSize: (width, height) =>
+    set({
+      width: Math.max(2, Math.round(width)),
+      height: Math.max(2, Math.round(height)),
+    }),
 }));
