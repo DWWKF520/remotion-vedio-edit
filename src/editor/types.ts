@@ -53,3 +53,15 @@ export interface EditorState {
   /** 时间线缩放（每帧多少像素） */
   pxPerFrame: number;
 }
+
+/** 保存的 clip 组合预设，可重新加载到时间线 */
+export interface Preset {
+  id: string;
+  name: string;
+  createdAt: number;
+  tracks: Track[];
+  clips: Record<string, Clip>;
+  width: number;
+  height: number;
+  fps: number;
+}

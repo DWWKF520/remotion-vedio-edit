@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { PlayerRef } from "@remotion/player";
 import { nanoid } from "./nanoid";
-import type { Clip, Track } from "./types";
+import type { Clip, Track, Preset } from "./types";
 import { getComponentDef } from "./registry";
 
 const DEFAULT_WIDTH = 1920;
@@ -51,6 +51,26 @@ export function getPlayerRef(): PlayerRef | null {
   return playerRef;
 }
 
+// ---- 预设持久化（localStorage）----
+const PRESETS_STORAGE_KEY = "video-editor-presets";
+
+function loadPresetsFromStorage(): Preset[] {
+  try {
+    const raw = localStorage.getItem(PRESETS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Preset[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistPresets(presets: Preset[]): void {
+  try {
+    localStorage.setItem(PRESETS_STORAGE_KEY, JSON.stringify(presets));
+  } catch {
+    // 存储满或被禁用时静默失败
+  }
+}
+
 interface EditorStore {
   tracks: Track[];
   clips: Record<string, Clip>;
@@ -92,6 +112,15 @@ interface EditorStore {
   toggleTrackMuted: (trackId: string) => void;
   /** 设置画布尺寸（同时影响预览和导出） */
   setCanvasSize: (width: number, height: number) => void;
+
+  // ---- 预设管理 ----
+  savedPresets: Preset[];
+  /** 保存当前 clip 组合为新预设 */
+  savePreset: (name: string) => void;
+  /** 加载预设，替换当前时间线内容 */
+  loadPreset: (presetId: string) => void;
+  /** 删除预设 */
+  deletePreset: (presetId: string) => void;
 }
 
 export const useEditorStore = create<EditorStore>((set, get) => ({
@@ -108,6 +137,8 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
   width: DEFAULT_WIDTH,
   height: DEFAULT_HEIGHT,
   pxPerFrame: DEFAULT_PX_PER_FRAME,
+
+  savedPresets: loadPresetsFromStorage(),
 
   addClipFromRegistry: (componentKey) => {
     const state = get();
@@ -388,4 +419,59 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       width: Math.max(2, Math.round(width)),
       height: Math.max(2, Math.round(height)),
     }),
+
+  // ---- 预设管理 ----
+  savePreset: (name) => {
+    const s = get();
+    const preset: Preset = {
+      id: nanoid(),
+      name,
+      createdAt: Date.now(),
+      // 深拷贝避免后续编辑影响已保存的预设
+      tracks: JSON.parse(JSON.stringify(s.tracks)) as Track[],
+      clips: JSON.parse(JSON.stringify(s.clips)) as Record<string, Clip>,
+      width: s.width,
+      height: s.height,
+      fps: s.fps,
+    };
+    const presets = [...s.savedPresets, preset];
+    persistPresets(presets);
+    set({ savedPresets: presets });
+  },
+
+  loadPreset: (presetId) => {
+    const s = get();
+    const preset = s.savedPresets.find((p) => p.id === presetId);
+    if (!preset) return;
+    // 重新生成所有 id，避免与当前内容潜在冲突
+    const clipIdMap: Record<string, string> = {};
+    const newClips: Record<string, Clip> = {};
+    for (const [oldId, clip] of Object.entries(preset.clips)) {
+      const newId = nanoid();
+      clipIdMap[oldId] = newId;
+      newClips[newId] = { ...JSON.parse(JSON.stringify(clip)), id: newId };
+    }
+    const newTracks: Track[] = preset.tracks.map((t) => ({
+      ...JSON.parse(JSON.stringify(t)),
+      id: nanoid(),
+      clipIds: t.clipIds.map((cid) => clipIdMap[cid] ?? cid).filter(Boolean),
+    }));
+    set({
+      tracks: newTracks,
+      clips: newClips,
+      width: preset.width,
+      height: preset.height,
+      fps: preset.fps,
+      selectedClipId: null,
+      currentFrame: 0,
+      totalDuration: recomputePreviewDuration(newTracks, newClips),
+    });
+  },
+
+  deletePreset: (presetId) => {
+    const s = get();
+    const presets = s.savedPresets.filter((p) => p.id !== presetId);
+    persistPresets(presets);
+    set({ savedPresets: presets });
+  },
 }));
