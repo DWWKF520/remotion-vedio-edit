@@ -13,3 +13,4 @@ import "../components/RulerProgressRender/manifest";
 import "../components/LightSpotlight/manifest";
 import "../components/SalaryCompare/manifest";
 import "../components/SpeakingPerson/manifest";
+import "../components/ReportHighlight/manifest";
