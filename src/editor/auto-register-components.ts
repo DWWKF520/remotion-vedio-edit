@@ -14,3 +14,5 @@ import "../components/LightSpotlight/manifest";
 import "../components/SalaryCompare/manifest";
 import "../components/SpeakingPerson/manifest";
 import "../components/ReportHighlight/manifest";
+import "../components/LuosifenAnimation/manifest";
+import "../components/LuosifenSpotlight/manifest";

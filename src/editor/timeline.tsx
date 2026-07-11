@@ -247,12 +247,12 @@ const TrackRow = React.memo(function TrackRow({
 
   return (
     <div
-      className="relative border-b border-black/5 dark:border-white/5"
+      className="relative border-b border-[var(--separator)] dark:border-[var(--separator)]"
       style={{
         height: TRACK_HEIGHT,
         width: Math.max(timelineWidth, 800),
         background: track.muted
-          ? "repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(100,116,139,0.06) 6px,rgba(100,116,139,0.06) 12px)"
+          ? "repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(142,142,147,0.06) 6px,rgba(142,142,147,0.06) 12px)"
           : undefined,
         opacity: track.muted ? 0.5 : 1,
       }}
@@ -319,8 +319,8 @@ const TrackHeader = React.memo(function TrackHeader({
 }: TrackHeaderProps) {
   return (
     <div
-      className={`flex flex-col justify-center gap-0.5 border-b border-black/5 px-2 py-1 dark:border-white/5 ${
-        track.muted ? "bg-black/[0.02] dark:bg-white/[0.01]" : ""
+      className={`flex flex-col justify-center gap-0.5 border-b border-[var(--separator)] px-2 py-1 dark:border-[var(--separator)] ${
+        track.muted ? "bg-[var(--separator)]/30 dark:bg-white/5" : ""
       }`}
       style={{ height: TRACK_HEIGHT }}
     >
@@ -331,15 +331,15 @@ const TrackHeader = React.memo(function TrackHeader({
             style={{
               background:
                 track.kind === "background"
-                  ? "linear-gradient(180deg, #38bdf8, #0284c7)"
-                  : "linear-gradient(180deg, #fbbf24, #d97706)",
+                  ? "linear-gradient(180deg, #007aff, #0064d6)"
+                  : "linear-gradient(180deg, #ff9500, #d97706)",
             }}
           />
           <span
             className={`text-[11px] font-semibold ${
               track.muted
-                ? "text-slate-400 dark:text-gray-600"
-                : "text-slate-700 dark:text-gray-200"
+                ? "text-[#8e8e93] dark:text-[#48484a]"
+                : "text-[#3c3c43] dark:text-[#f5f5f7]"
             }`}
           >
             {track.name}
@@ -391,7 +391,7 @@ const TrackHeader = React.memo(function TrackHeader({
           </button>
         </div>
       </div>
-      <span className="pl-[7px] text-[9px] text-slate-400 dark:text-gray-600">
+      <span className="pl-[7px] text-[9px] text-[#8e8e93] dark:text-[#48484a]">
         {track.clipIds.length} 个片段
       </span>
     </div>
@@ -616,16 +616,16 @@ export const Timeline: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-shrink-0 flex-col border-t border-black/5 bg-white/50 text-xs text-slate-700 dark:border-white/8 dark:bg-[#121215]/80 dark:text-gray-300 ${
+      className={`flex flex-shrink-0 flex-col border-t border-[var(--separator)] bg-[var(--surface-overlay)]/50 text-xs text-[#3c3c43] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/80 dark:text-[#aeaeb2] ${
         isPortrait ? "h-[180px] min-h-[140px]" : "h-[300px] min-h-[250px]"
       }`}
     >
       {/* ===== 播放控件栏 - 剪映风格：居中的播放按钮 ===== */}
-      <div className="glass flex h-10 flex-shrink-0 items-center gap-1.5 border-b border-black/5 bg-white/70 px-4 dark:border-white/8 dark:bg-[#161618]/70">
+      <div className="glass flex h-10 flex-shrink-0 items-center gap-1.5 border-b border-[var(--separator)] bg-[var(--surface-overlay)] px-4 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/72">
         {/* 左侧：添加轨道 - 次级按钮 */}
         <button
           onClick={() => addTrack("overlay")}
-          className="flex items-center gap-1 rounded-md border border-black/5 bg-black/5 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-black/10 dark:border-white/8 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
+          className="flex items-center gap-1 rounded-md border border-[var(--separator)] bg-[var(--separator)] px-2 py-1 text-[11px] text-[#8e8e93] transition-colors hover:bg-[var(--separator-opaque)] dark:border-[var(--separator)] dark:bg-[var(--separator)] dark:text-[#8e8e93] dark:hover:bg-[var(--separator-opaque)]"
           title="添加叠加轨道"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -635,7 +635,7 @@ export const Timeline: React.FC = () => {
         </button>
         <button
           onClick={() => addTrack("background")}
-          className="flex items-center gap-1 rounded-md border border-black/5 bg-black/5 px-2 py-1 text-[11px] text-slate-500 transition-colors hover:bg-black/10 dark:border-white/8 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10"
+          className="flex items-center gap-1 rounded-md border border-[var(--separator)] bg-[var(--separator)] px-2 py-1 text-[11px] text-[#8e8e93] transition-colors hover:bg-[var(--separator-opaque)] dark:border-[var(--separator)] dark:bg-[var(--separator)] dark:text-[#8e8e93] dark:hover:bg-[var(--separator-opaque)]"
           title="添加背景轨道"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -667,8 +667,8 @@ export const Timeline: React.FC = () => {
             title="播放/暂停 (Space)"
             className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 ${
               isPlaying
-                ? "bg-violet-500/20 text-violet-600 dark:text-violet-300"
-                : "bg-gradient-to-br from-indigo-500 to-violet-500 shadow-md shadow-indigo-500/30"
+                ? "bg-[#007aff]/15 text-[#007aff] dark:text-[#4da2ff]"
+                : "bg-[#007aff] shadow-sm shadow-[#007aff]/25"
             }`}
           >
             {isPlaying ? <IconPause size={14} /> : <IconPlay size={14} />}
@@ -690,18 +690,18 @@ export const Timeline: React.FC = () => {
         </div>
 
         {/* 时间显示 */}
-        <div className="ml-3 min-w-[140px] font-mono text-[11px] text-slate-400 dark:text-gray-500">
-          <span className="font-semibold text-slate-800 dark:text-gray-100">
+        <div className="ml-3 min-w-[140px] font-mono text-[11px] text-[#8e8e93] dark:text-[#8e8e93]">
+          <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             {formatTime(currentFrame, fps)}
           </span>
-          <span className="mx-1 text-slate-300 dark:text-gray-600">/</span>
+          <span className="mx-1 text-[#aeaeb2] dark:text-[#48484a]">/</span>
           <span>{formatTime(totalDuration, fps)}</span>
         </div>
 
         <span className="flex-1" />
 
         {/* 右侧：缩放 */}
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-gray-500">
+        <div className="flex items-center gap-1.5 text-[11px] text-[#8e8e93] dark:text-[#8e8e93]">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8" />
             <path d="M21 21l-4.35-4.35M8 11h6M11 8v6" />
@@ -725,15 +725,15 @@ export const Timeline: React.FC = () => {
           const canSplit =
             currentFrame > sel.start && currentFrame < clipEnd;
           return (
-            <div className="ml-2 flex items-center gap-1 rounded bg-violet-500/10 px-1.5 py-0.5">
-              <span className="px-1 text-[11px] text-violet-600 dark:text-violet-300">
+            <div className="ml-2 flex items-center gap-1 rounded bg-[#007aff]/10 px-1.5 py-0.5">
+              <span className="px-1 text-[11px] text-[#007aff] dark:text-[#4da2ff]">
                 {sel.name}
               </span>
               {/* 分割：在播放头位置切成两段 */}
               <button
                 onClick={() => canSplit && splitClip(selectedClipId, currentFrame)}
                 disabled={!canSplit}
-                className="flex h-6 w-6 items-center justify-center rounded text-violet-500 transition-colors hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-violet-300"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#007aff] transition-colors hover:bg-[#007aff]/15 disabled:cursor-not-allowed disabled:opacity-40 dark:text-[#4da2ff]"
                 title="在播放头位置分割 (S)"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -748,7 +748,7 @@ export const Timeline: React.FC = () => {
               <button
                 onClick={() => canSplit && trimClipStart(selectedClipId, currentFrame)}
                 disabled={!canSplit}
-                className="flex h-6 w-6 items-center justify-center rounded text-amber-500 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-amber-300"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#ff9500] transition-colors hover:bg-[#ff9500]/15 disabled:cursor-not-allowed disabled:opacity-40 dark:text-[#ffb340]"
                 title="向前裁剪：删除播放头之前的部分 ([)"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -761,7 +761,7 @@ export const Timeline: React.FC = () => {
               <button
                 onClick={() => canSplit && trimClipEnd(selectedClipId, currentFrame)}
                 disabled={!canSplit}
-                className="flex h-6 w-6 items-center justify-center rounded text-amber-500 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-40 dark:text-amber-300"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#ff9500] transition-colors hover:bg-[#ff9500]/15 disabled:cursor-not-allowed disabled:opacity-40 dark:text-[#ffb340]"
                 title="向后裁剪：删除播放头之后的部分 (])"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -773,7 +773,7 @@ export const Timeline: React.FC = () => {
               {/* 删除 */}
               <button
                 onClick={() => removeClip(selectedClipId)}
-                className="flex h-6 w-6 items-center justify-center rounded text-red-500 transition-colors hover:bg-red-500/20 dark:text-red-300"
+                className="flex h-6 w-6 items-center justify-center rounded text-[#ff3b30] transition-colors hover:bg-[#ff3b30]/15 dark:text-[#ff453a]"
                 title="删除 (Del)"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -791,7 +791,7 @@ export const Timeline: React.FC = () => {
       {/* ===== 时间线轨道区：统一滚动，左侧轨道头 sticky left-0 ===== */}
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-auto bg-slate-100/50 dark:bg-[#0e0e10]"
+        className="min-h-0 flex-1 overflow-auto bg-[#f2f2f7]/50 dark:bg-black"
       >
         <div
           className="relative flex"
@@ -802,12 +802,12 @@ export const Timeline: React.FC = () => {
         >
           {/* 左侧轨道头列：sticky left-0 横向固定，垂直跟随滚动（与轨道行同步） */}
           <div
-            className="sticky left-0 z-10 flex-shrink-0 border-r border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
+            className="sticky left-0 z-10 flex-shrink-0 border-r border-[var(--separator)] bg-[var(--surface-overlay)] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/72"
             style={{ width: TRACK_HEAD_WIDTH }}
           >
             {/* 标尺占位：sticky top-0 垂直固定（与右侧标尺对齐） */}
             <div
-              className="sticky top-0 z-10 border-b border-black/5 bg-white/70 dark:border-white/8 dark:bg-[#161618]/70"
+              className="sticky top-0 z-10 border-b border-[var(--separator)] bg-[var(--surface-overlay)] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/72"
               style={{ height: RULER_HEIGHT }}
             />
             {/* Optimization 3 & 7: TrackHeader is memoized; key=t.id is stable */}
@@ -832,7 +832,7 @@ export const Timeline: React.FC = () => {
           >
             {/* 标尺 */}
             <div
-              className="sticky top-0 z-[5] cursor-pointer border-b border-black/5 bg-white/80 dark:border-white/8 dark:bg-[#161618]/90"
+              className="sticky top-0 z-[5] cursor-pointer border-b border-[var(--separator)] bg-[var(--surface-overlay)] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/90"
               style={{
                 height: RULER_HEIGHT,
               }}
@@ -842,7 +842,7 @@ export const Timeline: React.FC = () => {
               {rulerTicks.map((frame, i) => (
                 <div
                   key={i}
-                  className="absolute border-l border-black/5 pl-1 text-[9px] leading-[24px] text-slate-400 dark:border-white/8 dark:text-gray-600"
+                  className="absolute border-l border-[var(--separator)] pl-1 text-[9px] leading-[24px] text-[#8e8e93] dark:border-[var(--separator)] dark:text-[#48484a]"
                   style={{ left: frameToX(frame, pxPerFrame) }}
                 >
                   {frame}
@@ -869,10 +869,10 @@ export const Timeline: React.FC = () => {
             {/* 多轨对齐参考线（金色） */}
             {snapFrame !== null && (
               <div
-                className="pointer-events-none absolute top-0 bottom-0 z-[18] w-px bg-amber-400"
+                className="pointer-events-none absolute top-0 bottom-0 z-[18] w-px bg-[#ff9500]"
                 style={{
                   left: frameToX(snapFrame, pxPerFrame),
-                  boxShadow: "0 0 6px rgba(251,191,36,0.6)",
+                  boxShadow: "0 0 6px rgba(255,149,0,0.5)",
                 }}
               />
             )}
@@ -888,10 +888,10 @@ export const Timeline: React.FC = () => {
               title="拖动播放头"
             >
               {/* 中线 */}
-              <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_0_4px_rgba(239,68,68,0.4)]" />
+              <div className="absolute left-1 top-0 bottom-0 w-0.5 bg-gradient-to-b from-[#ff3b30] to-[#ff453a] shadow-[0_0_4px_rgba(255,59,48,0.4)]" />
               {/* 顶部手柄 */}
               <div
-                className="absolute top-0 left-0 h-3 w-2.5 bg-gradient-to-b from-red-500 to-red-600 shadow-[0_1px_3px_rgba(239,68,68,0.3)]"
+                className="absolute top-0 left-0 h-3 w-2.5 bg-gradient-to-b from-[#ff3b30] to-[#ff453a] shadow-[0_1px_3px_rgba(255,59,48,0.3)]"
                 style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
               />
             </div>

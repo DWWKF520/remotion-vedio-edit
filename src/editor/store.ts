@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { PlayerRef } from "@remotion/player";
 import { nanoid } from "./nanoid";
-import type { Clip, Track, Preset } from "./types";
+import type { Clip, ClipEffect, Track, Preset } from "./types";
 import { getComponentDef } from "./registry";
 
 const DEFAULT_WIDTH = 1920;
@@ -98,6 +98,12 @@ interface EditorStore {
   trimClipStart: (clipId: string, toFrame: number) => void;
   /** 向后裁剪：删除 clip 从 fromFrame 到结尾的部分（保留前半段） */
   trimClipEnd: (clipId: string, fromFrame: number) => void;
+  /** 更新 clip 的入场/出场动画效果，传 null 清除 */
+  updateClipEffect: (
+    clipId: string,
+    kind: "enter" | "exit",
+    effect: ClipEffect | null,
+  ) => void;
 
   // 播放控制（操作 Player 实例）
   setCurrentFrame: (frame: number) => void;
@@ -337,6 +343,17 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         clips: newClips,
         totalDuration: recomputePreviewDuration(s.tracks, newClips),
       };
+    }),
+
+  updateClipEffect: (clipId, kind, effect) =>
+    set((s) => {
+      const c = s.clips[clipId];
+      if (!c) return s;
+      const next: Clip =
+        kind === "enter"
+          ? { ...c, enterEffect: effect ?? undefined }
+          : { ...c, exitEffect: effect ?? undefined };
+      return { clips: { ...s.clips, [clipId]: next } };
     }),
 
   addTrack: (kind = "overlay") =>

@@ -75,10 +75,10 @@ export const Preview: React.FC = React.memo(() => {
   const isPortrait = height > width;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-slate-200/50 dark:bg-[#050508]">
+    <div className="relative flex min-h-0 flex-1 flex-col bg-[#e5e5ea]/40 dark:bg-black">
       {/* 顶部工具栏：画幅比例选择 */}
-      <div className="flex h-8 flex-shrink-0 items-center gap-2 border-b border-black/5 bg-white/60 px-3 dark:border-white/8 dark:bg-[#161618]/60">
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-gray-500">
+      <div className="flex h-8 flex-shrink-0 items-center gap-2 border-b border-[var(--separator)] bg-[var(--surface-overlay)] px-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8e8e93] dark:text-[#8e8e93]">
           画幅
         </span>
         <select
@@ -89,7 +89,7 @@ export const Preview: React.FC = React.memo(() => {
             );
             if (preset) setCanvasSize(preset.w, preset.h);
           }}
-          className="rounded-md border border-black/10 bg-slate-50 px-2 py-0.5 text-[11px] text-slate-700 outline-none transition-colors focus:border-violet-500 dark:border-white/10 dark:bg-black/30 dark:text-gray-200 dark:focus:border-violet-400"
+          className="rounded-md border border-[var(--separator-opaque)] bg-[var(--surface-sunken)] px-2 py-0.5 text-[11px] text-[#3c3c43] outline-none transition-colors focus:border-[#007aff] dark:border-[var(--separator-opaque)] dark:bg-black/40 dark:text-[#f5f5f7] dark:focus:border-[#0a84ff]"
           title="切换画幅比例（预览和导出均使用）"
         >
           {ASPECT_PRESETS.map((p) => (
@@ -103,7 +103,7 @@ export const Preview: React.FC = React.memo(() => {
             </option>
           )}
         </select>
-        <span className="text-[10px] text-slate-400 dark:text-gray-500">
+        <span className="text-[10px] text-[#8e8e93] dark:text-[#8e8e93]">
           导出将按此尺寸渲染
         </span>
       </div>
@@ -111,7 +111,7 @@ export const Preview: React.FC = React.memo(() => {
       {/* 预览画布 */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center p-2">
         <div
-          className="overflow-hidden rounded-lg border-2 border-violet-500/30 shadow-2xl shadow-black/20 ring-1 ring-black/5 dark:shadow-black/50 dark:ring-white/5"
+          className="overflow-hidden rounded-lg border-2 border-[#007aff]/20 shadow-lg shadow-black/10 ring-1 ring-[var(--separator)] dark:shadow-black/40 dark:ring-[var(--separator)]"
           style={{
             aspectRatio: `${width} / ${height}`,
             // 竖屏：高度优先填满，宽度按比例；横屏：宽度优先填满，高度按比例。

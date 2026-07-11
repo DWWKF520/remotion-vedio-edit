@@ -24,7 +24,7 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
   // 收起状态：窄条仅显示图标
   if (collapsed) {
     return (
-      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-r border-black/5 bg-white/60 py-3 dark:border-white/8 dark:bg-[#161618]/60">
+      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-r border-[var(--separator)] bg-[var(--surface-overlay)] py-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
         {tab !== "presets" &&
           items.map((def) => (
             <MaterialButton
@@ -39,9 +39,9 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
   }
 
   return (
-    <aside className="flex w-[200px] flex-shrink-0 flex-col overflow-hidden border-r border-black/5 bg-white/60 text-slate-800 dark:border-white/8 dark:bg-[#161618]/60 dark:text-gray-200">
+    <aside className="flex w-[200px] flex-shrink-0 flex-col overflow-hidden border-r border-[var(--separator)] bg-[var(--surface-overlay)] text-[#1d1d1f] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60 dark:text-[#f5f5f7]">
       {/* Tab 切换 */}
-      <div className="flex flex-shrink-0 border-b border-black/5 dark:border-white/5">
+      <div className="flex flex-shrink-0 border-b border-[var(--separator)] dark:border-[var(--separator)]">
         <TabBtn
           active={tab === "materials"}
           onClick={() => setTab("materials")}
@@ -73,7 +73,7 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
             />
           ))}
           {items.length === 0 && (
-            <div className="py-7 text-center text-xs text-slate-400 dark:text-gray-500">
+            <div className="py-7 text-center text-xs text-[#8e8e93] dark:text-[#8e8e93]">
               暂无组件
             </div>
           )}
@@ -120,11 +120,11 @@ const PresetPanel: React.FC = () => {
               }
             }}
             placeholder="预设名称..."
-            className="min-w-0 flex-1 rounded-md border border-violet-400/50 bg-white/80 px-2 py-1.5 text-xs text-slate-800 outline-none dark:bg-black/30 dark:text-gray-200"
+            className="min-w-0 flex-1 rounded-md border border-[#007aff]/30 bg-[var(--surface)] px-2 py-1.5 text-xs text-[#1d1d1f] outline-none dark:bg-[#000000]/40 dark:text-[#f5f5f7]"
           />
           <button
             onClick={confirmSave}
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-violet-500 text-white transition-colors hover:bg-violet-600"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-[#007aff] text-white transition-colors hover:bg-[#0071e3]"
             title="确认保存"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -136,7 +136,7 @@ const PresetPanel: React.FC = () => {
               setName("");
               setIsSaving(false);
             }}
-            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-slate-200 text-slate-500 transition-colors hover:bg-slate-300 dark:bg-white/10 dark:text-gray-400 dark:hover:bg-white/20"
+            className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md bg-[#e5e5ea] text-[#8e8e93] transition-colors hover:bg-[#d1d1d6] dark:bg-[var(--separator-opaque)] dark:text-[#8e8e93] dark:hover:bg-[#3a3a3c]"
             title="取消"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
@@ -148,7 +148,7 @@ const PresetPanel: React.FC = () => {
         <button
           onClick={() => setIsSaving(true)}
           disabled={clipCount === 0}
-          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-violet-400/40 bg-violet-50/50 py-2.5 text-xs font-semibold text-violet-600 transition-all hover:border-violet-400 hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-40 dark:border-violet-400/30 dark:bg-violet-500/5 dark:text-violet-300 dark:hover:bg-violet-500/10"
+          className="flex items-center justify-center gap-1.5 rounded-xl border border-dashed border-[#007aff]/30 bg-[#007aff]/5 py-2.5 text-xs font-semibold text-[#007aff] transition-all hover:border-[#007aff]/40 hover:bg-[#007aff]/8 disabled:cursor-not-allowed disabled:opacity-40 dark:border-[#0a84ff]/30 dark:bg-[#0a84ff]/8 dark:text-[#4da2ff] dark:hover:bg-[#0a84ff]/12"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -160,7 +160,7 @@ const PresetPanel: React.FC = () => {
 
       {/* 预设列表 */}
       {savedPresets.length === 0 && !isSaving ? (
-        <div className="py-7 text-center text-xs text-slate-400 dark:text-gray-500">
+        <div className="py-7 text-center text-xs text-[#8e8e93] dark:text-[#8e8e93]">
           暂无预设
           <br />
           <span className="text-[10px]">添加 clip 后点击上方按钮保存</span>
@@ -192,28 +192,28 @@ const PresetCard: React.FC<{
   return (
     <div
       onClick={onLoad}
-      className="group relative cursor-pointer rounded-xl border border-black/5 bg-white/50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-violet-400/40 hover:bg-violet-50/30 hover:shadow-lg dark:border-white/5 dark:bg-white/[0.03] dark:hover:border-violet-400/30 dark:hover:bg-violet-500/5 dark:hover:shadow-black/30"
+      className="group relative cursor-pointer rounded-xl border border-[var(--separator)] bg-[var(--surface)]/50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-[#007aff]/30 hover:bg-[#007aff]/5 hover:shadow-md dark:border-[var(--separator)] dark:bg-white/5 dark:hover:border-[#0a84ff]/25 dark:hover:bg-[#0a84ff]/8 dark:hover:shadow-lg"
     >
       {/* 图标 + 名称 */}
       <div className="flex items-center gap-2">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-400/30 to-violet-500/10 text-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-violet-500 dark:text-violet-300">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#007aff]/10 text-sm">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#007aff] dark:text-[#4da2ff]">
             <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
             <path d="M17 21v-8H7v8M7 3v5h8" />
           </svg>
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-semibold text-slate-800 dark:text-gray-200">
+          <div className="truncate text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
             {preset.name}
           </div>
-          <div className="text-[10px] text-slate-400 dark:text-gray-500">
+          <div className="text-[10px] text-[#8e8e93] dark:text-[#8e8e93]">
             {clipCount} clips · {preset.width}×{preset.height} · {dateStr}
           </div>
         </div>
       </div>
 
       {/* 右下角加载提示 */}
-      <div className="absolute bottom-2 right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-violet-600 shadow-sm transition-transform duration-150 group-hover:scale-110">
+      <div className="absolute bottom-2 right-2 flex h-[22px] w-[22px] items-center justify-center rounded-full bg-[#007aff] shadow-sm transition-transform duration-150 group-hover:scale-110">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M5 12h14M12 5l7 7-7 7" />
         </svg>
@@ -225,7 +225,7 @@ const PresetCard: React.FC<{
           e.stopPropagation();
           onDelete();
         }}
-        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500/90 text-white opacity-0 transition-opacity duration-150 hover:bg-red-600 group-hover:opacity-100"
+        className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-[#ff3b30] text-white opacity-0 transition-opacity duration-150 hover:bg-[#ff453a] group-hover:opacity-100"
         title="删除预设"
       >
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
@@ -259,7 +259,7 @@ const MaterialCard: React.FC<{
 }> = ({ def, onClick }) => (
   <div
     onClick={onClick}
-    className="group relative cursor-pointer rounded-xl border border-black/5 bg-white/50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-black/10 hover:shadow-lg dark:border-white/5 dark:bg-white/[0.03] dark:hover:border-white/10 dark:hover:shadow-black/30"
+    className="group relative cursor-pointer rounded-xl border border-[var(--separator)] bg-[var(--surface)]/50 p-3 transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--separator-opaque)] hover:shadow-md dark:border-[var(--separator)] dark:bg-white/5 dark:hover:border-[var(--separator-opaque)] dark:hover:shadow-lg"
     style={
       {
         "--accent": def.accentColor,
@@ -284,7 +284,7 @@ const MaterialCard: React.FC<{
       >
         {def.icon}
       </div>
-      <div className="text-xs font-semibold text-slate-800 dark:text-gray-200">
+      <div className="text-xs font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">
         {def.name}
       </div>
     </div>
@@ -321,8 +321,8 @@ const TabBtn: React.FC<{
     onClick={onClick}
     className={`flex-1 border-b-2 py-2.5 text-xs transition-all ${
       active
-        ? "border-violet-500 font-semibold text-slate-800 dark:border-violet-400 dark:text-gray-100"
-        : "border-transparent font-normal text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
+        ? "border-[#007aff] font-semibold text-[#1d1d1f] dark:border-[#0a84ff] dark:text-[#f5f5f7]"
+        : "border-transparent font-normal text-[#8e8e93] hover:text-[#48484a] dark:text-[#8e8e93] dark:hover:text-[#aeaeb2]"
     }`}
   >
     {label}

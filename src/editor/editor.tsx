@@ -317,28 +317,28 @@ export const EditorApp: React.FC = () => {
       : 0;
 
   return (
-    <div className="flex h-full w-full flex-col overflow-hidden bg-slate-100 font-sans text-slate-800 dark:bg-[#0a0a0c] dark:text-gray-200">
+    <div className="flex h-full w-full flex-col overflow-hidden bg-[#f2f2f7] font-sans text-[#1d1d1f] dark:bg-black dark:text-[#f5f5f7]">
       {/* ===== 顶部导航栏 ===== */}
-      <header className="glass flex h-11 flex-shrink-0 items-center gap-2 border-b border-black/5 bg-white/70 px-3 dark:border-white/8 dark:bg-[#161618]/70">
+      <header className="glass flex h-11 flex-shrink-0 items-center gap-2 border-b border-[var(--separator)] bg-[var(--surface-overlay)] px-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/72">
         {/* Logo / 品牌 */}
         <div className="flex items-center gap-2">
-          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 shadow-sm">
+          <div className="flex h-6 w-6 items-center justify-center rounded-md bg-[#007aff] shadow-sm">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff">
               <path d="M8 5v14l11-7z" />
             </svg>
           </div>
-          <span className="bg-gradient-to-r from-indigo-500 to-violet-500 bg-clip-text text-sm font-bold tracking-wide text-transparent">
+          <span className="text-sm font-bold tracking-tight text-[#007aff]">
             Video Editor
           </span>
         </div>
 
-        <div className="mx-1 h-4 w-px bg-black/10 dark:bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-[var(--separator-opaque)] dark:bg-[var(--separator-opaque)]" />
 
         {/* 侧栏折叠按钮 */}
         <button
           onClick={toggleLeft}
           title={leftCollapsed ? "展开素材面板" : "收起素材面板"}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[#8e8e93] transition-colors hover:bg-[var(--separator)] dark:text-[#8e8e93] dark:hover:bg-[var(--separator)]"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -348,7 +348,7 @@ export const EditorApp: React.FC = () => {
         <button
           onClick={toggleRight}
           title={rightCollapsed ? "展开属性面板" : "收起属性面板"}
-          className="flex h-7 w-7 items-center justify-center rounded-md text-slate-500 transition-colors hover:bg-black/5 dark:text-gray-400 dark:hover:bg-white/5"
+          className="flex h-7 w-7 items-center justify-center rounded-md text-[#8e8e93] transition-colors hover:bg-[var(--separator)] dark:text-[#8e8e93] dark:hover:bg-[var(--separator)]"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -360,7 +360,7 @@ export const EditorApp: React.FC = () => {
         {activeJobs.length > 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-1.5 rounded-md border border-blue-300/50 bg-blue-500/10 px-2.5 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-500/20 dark:border-blue-500/30 dark:text-blue-300"
+            className="flex items-center gap-1.5 rounded-md border border-[#007aff]/25 bg-[#007aff]/10 px-2.5 py-1 text-xs font-medium text-[#007aff] transition-colors hover:bg-[#007aff]/15 dark:border-[#0a84ff]/30 dark:text-[#4da2ff]"
             title="Exporting in background..."
           >
             <svg className="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
@@ -372,7 +372,7 @@ export const EditorApp: React.FC = () => {
         {activeJobs.length === 0 && doneJobs.length > 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-1.5 rounded-md border border-emerald-300/50 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:border-emerald-500/30 dark:text-emerald-300"
+            className="flex items-center gap-1.5 rounded-md border border-[#34c759]/25 bg-[#34c759]/10 px-2.5 py-1 text-xs font-medium text-[#34c759] transition-colors hover:bg-[#34c759]/15 dark:border-[#30d158]/30 dark:text-[#30d158]"
             title="Downloads ready"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -384,7 +384,7 @@ export const EditorApp: React.FC = () => {
         {activeJobs.length === 0 && errorJobs.length > 0 && doneJobs.length === 0 && (
           <button
             onClick={() => setDialogOpen(true)}
-            className="flex items-center gap-1.5 rounded-md border border-red-300/50 bg-red-500/10 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/20 dark:border-red-500/30 dark:text-red-300"
+            className="flex items-center gap-1.5 rounded-md border border-[#ff3b30]/25 bg-[#ff3b30]/10 px-2.5 py-1 text-xs font-medium text-[#ff3b30] transition-colors hover:bg-[#ff3b30]/15 dark:border-[#ff453a]/30 dark:text-[#ff453a]"
             title="Export failed"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -399,7 +399,7 @@ export const EditorApp: React.FC = () => {
         {/* 导出字幕 - 次级按钮 */}
         <button
           onClick={exportSRT}
-          className="rounded-lg border border-pink-300/60 bg-transparent px-3 py-1 text-xs font-semibold text-pink-500 transition-all hover:-translate-y-px hover:bg-pink-500/10 hover:shadow-sm dark:border-pink-500/40 dark:text-pink-300"
+          className="rounded-full border border-[var(--separator-opaque)] bg-transparent px-3 py-1 text-xs font-semibold text-[#007aff] transition-all hover:bg-[#007aff]/8 dark:border-[var(--separator-opaque)] dark:text-[#4da2ff]"
           title="导出 SRT 字幕文件，可导入剪映"
         >
           导出字幕
@@ -408,18 +408,18 @@ export const EditorApp: React.FC = () => {
         {/* 导出 MP4 - 主操作按钮 */}
         <button
           onClick={startExport}
-          className="rounded-lg border-none bg-gradient-to-br from-indigo-500 to-violet-500 px-4 py-1.5 text-xs font-semibold text-white shadow-md shadow-indigo-500/30 transition-all hover:-translate-y-px hover:shadow-lg hover:shadow-indigo-500/40 active:translate-y-0"
+          className="rounded-full border-none bg-[#007aff] px-4 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-[#0071e3] active:scale-95"
           title="Render current timeline to MP4"
         >
           导出 MP4
         </button>
 
-        <div className="mx-1 h-4 w-px bg-black/10 dark:bg-white/10" />
+        <div className="mx-1 h-4 w-px bg-[var(--separator-opaque)] dark:bg-[var(--separator-opaque)]" />
 
         {/* 主题切换按钮 - 右上角 */}
         <button
           onClick={toggleTheme}
-          className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-all hover:bg-black/5 hover:text-amber-500 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-amber-300"
+          className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8e8e93] transition-all hover:bg-[var(--separator)] hover:text-[#ff9500] dark:text-[#8e8e93] dark:hover:bg-[var(--separator)] dark:hover:text-[#ffb340]"
           title={theme === "dark" ? "切换到浅色主题" : "切换到深色主题"}
           aria-label="切换主题"
         >
@@ -464,26 +464,26 @@ const ExportDialog: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-md animate-fade-in"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) setDialogOpen(false);
       }}
     >
-      <div className="glass max-h-[80vh] min-w-[400px] max-w-[520px] overflow-y-auto rounded-2xl border border-black/5 bg-white/80 p-6 text-slate-800 shadow-2xl dark:border-white/10 dark:bg-[#1a1a1e]/80 dark:text-gray-200">
+      <div className="glass max-h-[80vh] min-w-[400px] max-w-[520px] overflow-y-auto rounded-2xl border border-[var(--separator)] bg-[var(--surface-overlay)] p-6 text-[#1d1d1f] shadow-2xl dark:border-[var(--separator-opaque)] dark:bg-[#2c2c2e]/80 dark:text-[#f5f5f7]">
         <div className="mb-4 flex items-center justify-between">
           <span className="text-base font-bold">导出任务</span>
           <div className="flex gap-2">
             {!hasActive && jobs.length > 0 && (
               <button
                 onClick={clearFinished}
-                className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                className="rounded-md border border-[var(--separator-opaque)] bg-[#f2f2f7] px-2.5 py-1 text-[11px] text-[#48484a] transition-colors hover:bg-[#e5e5ea] dark:border-[var(--separator-opaque)] dark:bg-[var(--separator)] dark:text-[#aeaeb2] dark:hover:bg-[var(--separator-opaque)]"
               >
                 清除已完成
               </button>
             )}
             <button
               onClick={() => setDialogOpen(false)}
-              className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1 text-[11px] text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+              className="rounded-md border border-[var(--separator-opaque)] bg-[#f2f2f7] px-2.5 py-1 text-[11px] text-[#48484a] transition-colors hover:bg-[#e5e5ea] dark:border-[var(--separator-opaque)] dark:bg-[var(--separator)] dark:text-[#aeaeb2] dark:hover:bg-[var(--separator-opaque)]"
             >
               {hasActive ? "隐藏" : "关闭"}
             </button>
@@ -491,7 +491,7 @@ const ExportDialog: React.FC = () => {
         </div>
 
         {jobs.length === 0 ? (
-          <div className="py-5 text-center text-sm text-slate-400 dark:text-gray-500">
+          <div className="py-5 text-center text-sm text-[#8e8e93] dark:text-[#8e8e93]">
             暂无导出任务，点击“导出 MP4”开始
           </div>
         ) : (
@@ -499,16 +499,16 @@ const ExportDialog: React.FC = () => {
             {jobs.map((job) => (
               <div
                 key={job.jobId}
-                className="rounded-lg border border-black/5 bg-white/60 p-3 dark:border-white/5 dark:bg-white/5"
+                className="rounded-lg border border-[var(--separator)] bg-[var(--surface-overlay)] p-3 dark:border-[var(--separator)] dark:bg-[var(--separator)]"
               >
                 <div className="mb-2 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 dark:text-gray-400">
+                  <span className="text-xs text-[#8e8e93] dark:text-[#8e8e93]">
                     {job.label}
                   </span>
                   {job.status !== "rendering" && (
                     <button
                       onClick={() => removeJob(job.jobId)}
-                      className="rounded px-2 py-0.5 text-[10px] text-slate-400 transition-colors hover:bg-red-500/10 hover:text-red-500 dark:text-gray-500"
+                      className="rounded px-2 py-0.5 text-[10px] text-[#8e8e93] transition-colors hover:bg-[#ff3b30]/10 hover:text-[#ff3b30] dark:text-[#8e8e93]"
                       title="Remove from list"
                     >
                       ✕
@@ -518,13 +518,13 @@ const ExportDialog: React.FC = () => {
 
                 {job.status === "rendering" && (
                   <div>
-                    <div className="h-1 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                    <div className="h-1 w-full overflow-hidden rounded-full bg-[#e5e5ea] dark:bg-[var(--separator-opaque)]">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500 transition-[width] duration-300"
+                        className="h-full rounded-full bg-[#007aff] transition-[width] duration-300"
                         style={{ width: `${Math.round(job.progress * 100)}%` }}
                       />
                     </div>
-                    <div className="mt-1 text-right text-[10px] text-slate-400 dark:text-gray-500">
+                    <div className="mt-1 text-right text-[10px] text-[#8e8e93] dark:text-[#8e8e93]">
                       {Math.round(job.progress * 100)}%
                     </div>
                   </div>
@@ -535,7 +535,7 @@ const ExportDialog: React.FC = () => {
                     <a
                       href={job.url}
                       download
-                      className="flex-1 rounded-md bg-gradient-to-br from-indigo-500 to-violet-500 px-2.5 py-1.5 text-center text-xs font-semibold text-white transition-transform hover:-translate-y-px"
+                      className="flex-1 rounded-md bg-[#007aff] px-2.5 py-1.5 text-center text-xs font-semibold text-white transition-transform hover:-translate-y-px"
                     >
                       下载 MP4
                     </a>
@@ -543,7 +543,7 @@ const ExportDialog: React.FC = () => {
                       href={job.url}
                       target="_blank"
                       rel="noreferrer"
-                      className="rounded-md border border-black/10 bg-slate-100 px-2.5 py-1.5 text-xs text-slate-600 transition-colors hover:bg-slate-200 dark:border-white/10 dark:bg-white/5 dark:text-gray-300 dark:hover:bg-white/10"
+                      className="rounded-md border border-[var(--separator-opaque)] bg-[#f2f2f7] px-2.5 py-1.5 text-xs text-[#48484a] transition-colors hover:bg-[#e5e5ea] dark:border-[var(--separator-opaque)] dark:bg-[var(--separator)] dark:text-[#aeaeb2] dark:hover:bg-[var(--separator-opaque)]"
                     >
                       打开
                     </a>
@@ -551,7 +551,7 @@ const ExportDialog: React.FC = () => {
                 )}
 
                 {job.status === "error" && (
-                  <pre className="max-h-30 overflow-auto whitespace-pre-wrap break-words rounded bg-red-500/10 p-2 text-[11px] text-red-500 dark:text-red-300">
+                  <pre className="max-h-30 overflow-auto whitespace-pre-wrap break-words rounded bg-[#ff3b30]/10 p-2 text-[11px] text-[#ff3b30] dark:text-[#ff453a]">
                     {job.message}
                   </pre>
                 )}
@@ -560,7 +560,7 @@ const ExportDialog: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-4 text-center text-[10px] text-slate-400 dark:text-gray-600">
+        <div className="mt-4 text-center text-[10px] text-[#8e8e93] dark:text-[#48484a]">
           {hasActive ? "关闭对话框不会取消后台导出任务" : ""}
         </div>
       </div>

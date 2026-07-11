@@ -1,5 +1,46 @@
 // 编辑器核心类型定义
 
+/** 动画效果类型 */
+export type EffectType =
+  | "none"
+  | "fade"
+  | "slide-left"
+  | "slide-right"
+  | "slide-up"
+  | "slide-down"
+  | "zoom-in"
+  | "zoom-out"
+  | "bounce"
+  | "rotate";
+
+/** 单个动画效果 */
+export interface ClipEffect {
+  type: EffectType;
+  /** 持续帧数 */
+  duration: number;
+}
+
+/** 效果元数据（用于 UI 展示） */
+export interface EffectMeta {
+  type: EffectType;
+  label: string;
+  icon: string;
+}
+
+/** 所有可选效果列表 */
+export const EFFECT_LIST: EffectMeta[] = [
+  { type: "none", label: "无", icon: "∅" },
+  { type: "fade", label: "淡入淡出", icon: "◉" },
+  { type: "slide-left", label: "左滑", icon: "←" },
+  { type: "slide-right", label: "右滑", icon: "→" },
+  { type: "slide-up", label: "上滑", icon: "↑" },
+  { type: "slide-down", label: "下滑", icon: "↓" },
+  { type: "zoom-in", label: "缩放进入", icon: "⊕" },
+  { type: "zoom-out", label: "缩放退出", icon: "⊖" },
+  { type: "bounce", label: "弹入", icon: "✦" },
+  { type: "rotate", label: "旋转", icon: "⟳" },
+];
+
 /** 单个组件实例在时间线上的片段 */
 export interface Clip {
   id: string;
@@ -18,6 +59,10 @@ export interface Clip {
    * 默认 0。
    */
   sourceStart?: number;
+  /** 入场动画 */
+  enterEffect?: ClipEffect;
+  /** 出场动画 */
+  exitEffect?: ClipEffect;
   /** 透传给 Remotion 组件的 props */
   props: Record<string, unknown>;
 }
