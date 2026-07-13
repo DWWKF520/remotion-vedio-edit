@@ -32,6 +32,7 @@ export const VideoLibrary: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addVideoClip = useEditorStore((s) => s.addVideoClip);
   const addImageClip = useEditorStore((s) => s.addImageClip);
+  const addCircleShrinkClip = useEditorStore((s) => s.addCircleShrinkClip);
   const fps = useEditorStore((s) => s.fps);
 
   const loadList = useCallback(async () => {
@@ -125,6 +126,14 @@ export const VideoLibrary: React.FC = () => {
       }
     },
     [addVideoClip, addImageClip, fps],
+  );
+
+  const handleAddCircleShrink = useCallback(
+    (item: MediaItem) => {
+      if (item.type !== "video") return;
+      addCircleShrinkClip(item.url, item.name);
+    },
+    [addCircleShrinkClip],
   );
 
   const onDrop = useCallback(
@@ -248,6 +257,7 @@ export const VideoLibrary: React.FC = () => {
             key={item.url}
             item={item}
             onAdd={() => handleAddToTimeline(item)}
+            onAddCircle={item.type === "video" ? () => handleAddCircleShrink(item) : undefined}
             onDelete={() => handleDelete(item.url, item.name)}
           />
         ))}
@@ -280,8 +290,9 @@ const SubTabBtn: React.FC<{
 const MediaItemCard: React.FC<{
   item: MediaItem;
   onAdd: () => void;
+  onAddCircle?: () => void;
   onDelete: () => void;
-}> = ({ item, onAdd, onDelete }) => {
+}> = ({ item, onAdd, onAddCircle, onDelete }) => {
   const [thumb, setThumb] = useState<string | null>(null);
 
   // 生成缩略图
@@ -412,6 +423,26 @@ const MediaItemCard: React.FC<{
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
+        {onAddCircle && (
+          <button
+            onClick={onAddCircle}
+            className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007aff] text-white shadow-sm transition-transform hover:scale-110"
+            title="圆形收缩转场（加到Overlay轨道）"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="12" cy="12" r="9" />
+            </svg>
+          </button>
+        )}
         <button
           onClick={onDelete}
           className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff3b30] text-white shadow-sm transition-transform hover:scale-110"

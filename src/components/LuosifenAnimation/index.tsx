@@ -94,6 +94,8 @@ function tweenNumber(
 export const LuosifenAnimation: React.FC<{
   /** 阶段切换曲线松紧度（默认 18） */
   readonly enterDuration?: number;
+  /** 背景透明度（0=完全透明，叠加在视频上用 0；纯色背景用 1） */
+  readonly bgOpacity?: number;
   /** 背景渐变起始色 */
   readonly bgStart?: string;
   /** 背景渐变结束色 */
@@ -104,16 +106,23 @@ export const LuosifenAnimation: React.FC<{
   readonly textColor?: string;
   /** 全局字体缩放（0.6-1.4） */
   readonly fontScale?: number;
+  /** 文字描边强度 0-1（叠加在视频上时调大） */
+  readonly textStroke?: number;
+  /** 底部蒙版强度 0-1（提高文字可读性） */
+  readonly bottomMask?: number;
   /** 视频宽度（兜底） */
   readonly videoWidth?: number;
   /** 视频高度（兜底） */
   readonly videoHeight?: number;
 }> = ({
+  bgOpacity = 0,
   bgStart = C.bg1,
   bgEnd = C.bg3,
   accentColor = C.luosifen,
-  textColor = C.text,
+  textColor = "#ffffff",
   fontScale = 1,
+  textStroke = 0.8,
+  bottomMask = 0.5,
   videoWidth = 1920,
   videoHeight = 1080,
 }) => {
@@ -145,28 +154,87 @@ export const LuosifenAnimation: React.FC<{
     { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
   );
 
+  // 文字描边样式（叠加在视频上时保证可读性）
+  const strokePx = textStroke * 4;
+  const textShadowStyle = textStroke > 0
+    ? `0 ${strokePx * 0.5}px ${strokePx * 2}px rgba(0,0,0,0.6), 0 0 ${strokePx}px rgba(0,0,0,0.8)`
+    : "none";
+  const strokeStyle = textStroke > 0
+    ? `${strokePx}px #000`
+    : "0px transparent";
+
   return (
     <AbsoluteFill
       style={{
-        background: `radial-gradient(ellipse at 50% 30%, ${bgEnd} 0%, ${bgStart} 70%, #000 100%)`,
+        background: bgOpacity > 0
+          ? `radial-gradient(ellipse at 50% 30%, ${bgEnd} 0%, ${bgStart} 70%, #000 100%)`
+          : "transparent",
         fontFamily: FONT_HEI,
         color: textColor,
         opacity: exitOpacity,
         overflow: "hidden",
       }}
     >
-      {/* 背景装饰：暖色光晕 + 飘动汤底粒子 */}
-      <BackgroundDecor frame={frame} fps={fps} accentColor={accentColor} />
+      {/* 背景装饰（只有 bgOpacity > 0 时显示） */}
+      {bgOpacity > 0 && (
+        <BackgroundDecor frame={frame} fps={fps} accentColor={accentColor} />
+      )}
+
+      {/* 底部渐变蒙版：提高下方文字可读性（叠加视频时尤其重要） */}
+      {bottomMask > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: "55%",
+            background: `linear-gradient(180deg, transparent 0%, rgba(0,0,0,${bottomMask * 0.4}) 45%, rgba(0,0,0,${bottomMask * 0.7}) 100%)`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
+      {/* 顶部暗角：不让标题和亮部视频打架 */}
+      {bottomMask > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: 0,
+            height: "25%",
+            background: `linear-gradient(0deg, transparent 0%, rgba(0,0,0,${bottomMask * 0.35}) 100%)`,
+            pointerEvents: "none",
+          }}
+        />
+      )}
 
       <AbsoluteFill
         style={{
-          padding: 60 * fontScale,
+          padding: `${60 * fontScale}px ${60 * fontScale}px`,
+          paddingBottom: `${100 * fontScale}px`,
           display: "flex",
           flexDirection: "column",
-          justifyContent: "center",
+          justifyContent: "flex-end",
           alignItems: "center",
+          // 全局文字阴影（让所有文字自动带描边感）
+          textShadow: textShadowStyle,
         }}
       >
+        {/* 通过 CSS 变量把描边传下去 */}
+        <div
+          style={{
+            "--stroke-color": "#000",
+            "--stroke-width": strokeStyle,
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "flex-end",
+            alignItems: "center",
+          } as React.CSSProperties}
+        >
         {frame < s1End && (
           <Stage1
             frame={frame}
@@ -175,6 +243,8 @@ export const LuosifenAnimation: React.FC<{
             accentColor={accentColor}
             width={width}
             height={height}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s1End && frame < s2End && (
@@ -182,6 +252,8 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s1End}
             fontScale={fontScale}
             accentColor={accentColor}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s2End && frame < s3End && (
@@ -189,6 +261,8 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s2End}
             fps={fps}
             fontScale={fontScale}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s3End && frame < s4End && (
@@ -196,6 +270,8 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s3End}
             fontScale={fontScale}
             accentColor={accentColor}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s4End && frame < s5End && (
@@ -203,6 +279,8 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s4End}
             fps={fps}
             fontScale={fontScale}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s5End && frame < s6End && (
@@ -211,6 +289,8 @@ export const LuosifenAnimation: React.FC<{
             fps={fps}
             fontScale={fontScale}
             accentColor={accentColor}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
         {frame >= s6End && (
@@ -218,8 +298,11 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s6End}
             fontScale={fontScale}
             accentColor={accentColor}
+            textColor={textColor}
+            textStroke={textStroke}
           />
         )}
+        </div>
       </AbsoluteFill>
     </AbsoluteFill>
   );
@@ -291,7 +374,9 @@ const Stage1: React.FC<{
   accentColor: string;
   width: number;
   height: number;
-}> = ({ frame, fps, fontScale, accentColor }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fps, fontScale, accentColor, textColor, textStroke }) => {
   const titleEnter = enter(frame, 0, 18);
   const numberEnter = enter(frame, 15, 22);
   const subEnter = enter(frame, 45, 18);
@@ -308,13 +393,18 @@ const Stage1: React.FC<{
   });
   const numScale = 0.7 + 0.3 * Math.min(1, numSpring);
 
+  // 强描边样式（大数字用）
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 8}px rgba(0,0,0,0.9), 0 ${textStroke * 3}px ${textStroke * 10}px rgba(0,0,0,0.8)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 18 * fontScale,
+        gap: 14 * fontScale,
         width: "100%",
       }}
     >
@@ -325,31 +415,33 @@ const Stage1: React.FC<{
           transform: `translateY(${titleEnter.translateY}px)`,
           display: "flex",
           alignItems: "center",
-          gap: 16,
-          padding: "10px 28px",
-          background: "rgba(255,107,53,0.1)",
-          border: "1px solid rgba(255,107,53,0.3)",
+          gap: 12,
+          padding: "8px 22px",
+          background: "rgba(0,0,0,0.45)",
+          border: `1px solid ${accentColor}55`,
           borderRadius: 999,
+          backdropFilter: "blur(8px)",
         }}
       >
         <div
           style={{
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             borderRadius: 4,
             background: accentColor,
-            boxShadow: `0 0 12px ${accentColor}`,
+            boxShadow: `0 0 10px ${accentColor}`,
           }}
         />
         <div
           style={{
-            fontSize: 20 * fontScale,
-            color: C.soup,
-            letterSpacing: 6,
+            fontSize: 16 * fontScale,
+            color: "#fff",
+            letterSpacing: 4,
             fontWeight: 600,
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
           }}
         >
-          LUOSIFEN · 国民小吃数据报告
+          国民小吃数据报告
         </div>
       </div>
 
@@ -358,11 +450,11 @@ const Stage1: React.FC<{
         style={{
           opacity: titleEnter.opacity,
           transform: `translateY(${titleEnter.translateY}px)`,
-          fontSize: 44 * fontScale,
+          fontSize: 38 * fontScale,
           fontWeight: 700,
-          color: C.text,
-          letterSpacing: 4,
-          marginTop: 12,
+          color: textColor,
+          letterSpacing: 3,
+          marginTop: 4,
         }}
       >
         螺蛳粉线下实体店已达
@@ -375,31 +467,30 @@ const Stage1: React.FC<{
           transform: `translateY(${numberEnter.translateY}px) scale(${numScale}) translateX(${shake}px)`,
           display: "flex",
           alignItems: "baseline",
-          gap: 8,
+          gap: 6,
           lineHeight: 1,
         }}
       >
         <div
           style={{
             fontFamily: FONT_NUM,
-            fontSize: 280 * fontScale,
+            fontSize: 200 * fontScale,
             fontWeight: 900,
-            background: `linear-gradient(180deg, #fff 0%, ${accentColor} 100%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            letterSpacing: -6,
+            color: "#fff",
+            letterSpacing: -4,
             fontVariantNumeric: "tabular-nums",
-            filter: `drop-shadow(0 8px 30px ${accentColor}80)`,
+            textShadow: `0 0 20px ${accentColor}cc, ${strongStroke}`,
+            WebkitTextStroke: textStroke > 0 ? `${textStroke * 2}px ${accentColor}` : "none",
           }}
         >
           {num.toFixed(1)}
         </div>
         <div
           style={{
-            fontSize: 100 * fontScale,
+            fontSize: 72 * fontScale,
             fontWeight: 800,
             color: accentColor,
-            textShadow: `0 0 30px ${accentColor}aa`,
+            textShadow: `0 0 20px ${accentColor}cc, 0 2px 8px rgba(0,0,0,0.8)`,
           }}
         >
           万
@@ -413,29 +504,31 @@ const Stage1: React.FC<{
           transform: `translateY(${subEnter.translateY}px)`,
           display: "flex",
           alignItems: "center",
-          gap: 24,
+          gap: 18,
+          marginTop: 4,
         }}
       >
         <div
           style={{
-            width: 60,
+            width: 40,
             height: 2,
             background: `linear-gradient(90deg, transparent, ${accentColor})`,
           }}
         />
         <div
           style={{
-            fontSize: 38 * fontScale,
+            fontSize: 28 * fontScale,
             fontWeight: 600,
-            color: C.soup,
-            letterSpacing: 4,
+            color: "#ffe0b2",
+            letterSpacing: 3,
+            textShadow: "0 1px 6px rgba(0,0,0,0.8)",
           }}
         >
           家 门 店 · 遍 布 全 国
         </div>
         <div
           style={{
-            width: 60,
+            width: 40,
             height: 2,
             background: `linear-gradient(90deg, ${accentColor}, transparent)`,
           }}
@@ -450,7 +543,9 @@ const Stage2: React.FC<{
   frame: number;
   fontScale: number;
   accentColor: string;
-}> = ({ frame, fontScale, accentColor }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fontScale, accentColor, textColor, textStroke }) => {
   const titleEnter = enter(frame, 0, 16);
 
   // 条形增长
@@ -465,14 +560,18 @@ const Stage2: React.FC<{
     easing: Easing.out(Easing.cubic),
   });
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 6}px rgba(0,0,0,0.85), 0 ${textStroke * 2}px ${textStroke * 6}px rgba(0,0,0,0.7)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 32 * fontScale,
+        gap: 24 * fontScale,
         width: "100%",
-        maxWidth: 1500,
+        maxWidth: 1400,
         alignItems: "center",
       }}
     >
@@ -485,34 +584,37 @@ const Stage2: React.FC<{
       >
         <div
           style={{
-            fontSize: 22 * fontScale,
-            color: C.textSub,
-            letterSpacing: 6,
+            fontSize: 20 * fontScale,
+            color: "#ffe0b2",
+            letterSpacing: 5,
             fontWeight: 500,
-            marginBottom: 6,
+            marginBottom: 4,
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
           }}
         >
           要 知 道 · 强 如
         </div>
         <div
           style={{
-            fontSize: 52 * fontScale,
+            fontSize: 44 * fontScale,
             fontWeight: 800,
-            color: C.text,
+            color: textColor,
             letterSpacing: -1,
+            textShadow: strongStroke,
           }}
         >
           国民小吃之王 · 沙县小吃
         </div>
         <div
           style={{
-            fontSize: 28 * fontScale,
-            color: C.textSub,
-            marginTop: 8,
+            fontSize: 24 * fontScale,
+            color: "#ffe0b2",
+            marginTop: 6,
             fontWeight: 500,
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
           }}
         >
-          国内也就有近 10 万+ 家店
+          国内也就有近 <span style={{ fontWeight: 800, color: "#fff" }}>10 万+</span> 家店
         </div>
       </div>
 
@@ -521,20 +623,25 @@ const Stage2: React.FC<{
         style={{
           display: "flex",
           flexDirection: "column",
-          gap: 24,
+          gap: 18,
           width: "100%",
-          padding: "0 40px",
+          padding: "20px 32px",
+          background: "rgba(0,0,0,0.35)",
+          borderRadius: 20,
+          border: "1px solid rgba(255,255,255,0.1)",
+          backdropFilter: "blur(10px)",
         }}
       >
         {/* 沙县小吃 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div
             style={{
-              width: 180,
-              fontSize: 26 * fontScale,
+              width: 140,
+              fontSize: 22 * fontScale,
               fontWeight: 700,
-              color: C.shaxianGlow,
+              color: "#d7ccc8",
               textAlign: "right",
+              textShadow: "0 1px 4px rgba(0,0,0,0.8)",
             }}
           >
             沙县小吃
@@ -542,28 +649,29 @@ const Stage2: React.FC<{
           <div
             style={{
               flex: 1,
-              height: 56,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: 28,
+              height: 48,
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: 24,
               overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
             }}
           >
             <div
               style={{
                 width: `${shaxianW}%`,
                 height: "100%",
-                background: `linear-gradient(90deg, ${C.shaxian}, ${C.shaxianGlow})`,
-                borderRadius: 28,
+                background: `linear-gradient(90deg, ${C.shaxian}, #a1887f)`,
+                borderRadius: 24,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "flex-end",
-                paddingRight: 24,
-                fontSize: 22 * fontScale,
+                paddingRight: 20,
+                fontSize: 20 * fontScale,
                 fontWeight: 800,
                 color: "#fff",
                 fontFamily: FONT_NUM,
-                boxShadow: `inset 0 0 20px ${C.shaxianGlow}55`,
+                boxShadow: `inset 0 0 16px rgba(255,255,255,0.2)`,
+                textShadow: "0 1px 4px rgba(0,0,0,0.5)",
               }}
             >
               10万+
@@ -572,14 +680,15 @@ const Stage2: React.FC<{
         </div>
 
         {/* 螺蛳粉 */}
-        <div style={{ display: "flex", alignItems: "center", gap: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
           <div
             style={{
-              width: 180,
-              fontSize: 26 * fontScale,
+              width: 140,
+              fontSize: 22 * fontScale,
               fontWeight: 700,
               color: accentColor,
               textAlign: "right",
+              textShadow: `0 0 10px ${accentColor}aa, 0 1px 4px rgba(0,0,0,0.8)`,
             }}
           >
             螺蛳粉
@@ -587,11 +696,11 @@ const Stage2: React.FC<{
           <div
             style={{
               flex: 1,
-              height: 56,
-              background: "rgba(255,255,255,0.04)",
-              borderRadius: 28,
+              height: 48,
+              background: "rgba(255,255,255,0.08)",
+              borderRadius: 24,
               overflow: "hidden",
-              border: "1px solid rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
             }}
           >
             <div
@@ -599,16 +708,17 @@ const Stage2: React.FC<{
                 width: `${luosifenW}%`,
                 height: "100%",
                 background: `linear-gradient(90deg, ${accentColor}, ${C.luosifenGlow})`,
-                borderRadius: 28,
+                borderRadius: 24,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "flex-end",
-                paddingRight: 24,
-                fontSize: 22 * fontScale,
+                paddingRight: 20,
+                fontSize: 20 * fontScale,
                 fontWeight: 800,
                 color: "#fff",
                 fontFamily: FONT_NUM,
-                boxShadow: `0 0 24px ${accentColor}66, inset 0 0 20px ${C.luosifenGlow}55`,
+                boxShadow: `0 0 16px ${accentColor}66, inset 0 0 16px rgba(255,255,255,0.2)`,
+                textShadow: "0 1px 4px rgba(0,0,0,0.5)",
               }}
             >
               5.1万
@@ -623,18 +733,20 @@ const Stage2: React.FC<{
           opacity: enter(frame, 55, 18).opacity,
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          padding: "10px 24px",
-          background: "rgba(255,255,255,0.04)",
-          borderRadius: 12,
-          fontSize: 22 * fontScale,
-          color: C.textSub,
+          gap: 10,
+          padding: "8px 20px",
+          background: "rgba(0,0,0,0.4)",
+          borderRadius: 999,
+          fontSize: 20 * fontScale,
+          color: "#ffe0b2",
+          border: "1px solid rgba(255,255,255,0.1)",
+          textShadow: "0 1px 4px rgba(0,0,0,0.8)",
         }}
       >
         <div
           style={{
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             borderRadius: 4,
             background: C.soup,
             boxShadow: `0 0 8px ${C.soup}`,
@@ -651,7 +763,9 @@ const Stage3: React.FC<{
   frame: number;
   fps: number;
   fontScale: number;
-}> = ({ frame, fps, fontScale }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fps, fontScale, textColor, textStroke }) => {
   const line1 = enter(frame, 0, 16);
   const line2 = enter(frame, 18, 16);
   const numEnter = enter(frame, 38, 20);
@@ -663,13 +777,17 @@ const Stage3: React.FC<{
   });
   const numScale = 0.7 + 0.3 * Math.min(1, numSpring);
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 8}px rgba(0,0,0,0.9), 0 ${textStroke * 3}px ${textStroke * 8}px rgba(0,0,0,0.8)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 22 * fontScale,
+        gap: 18 * fontScale,
         width: "100%",
       }}
     >
@@ -677,9 +795,10 @@ const Stage3: React.FC<{
         style={{
           opacity: line1.opacity,
           transform: `translateY(${line1.translateY}px)`,
-          fontSize: 32 * fontScale,
-          color: C.textSub,
+          fontSize: 28 * fontScale,
+          color: "#e0e0e0",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         如果你对这个体量无感
@@ -688,9 +807,10 @@ const Stage3: React.FC<{
         style={{
           opacity: line2.opacity,
           transform: `translateY(${line2.translateY}px)`,
-          fontSize: 32 * fontScale,
-          color: C.textSub,
+          fontSize: 28 * fontScale,
+          color: "#e0e0e0",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         我们再说一个数据
@@ -703,23 +823,28 @@ const Stage3: React.FC<{
           transform: `translateY(${numEnter.translateY}px) scale(${numScale})`,
           display: "flex",
           alignItems: "center",
-          gap: 24,
-          marginTop: 18,
+          gap: 20,
+          marginTop: 12,
+          padding: "20px 40px",
+          background: "rgba(0,0,0,0.35)",
+          borderRadius: 28,
+          border: `1px solid ${C.mixue}55`,
+          backdropFilter: "blur(10px)",
         }}
       >
         {/* 雪王雪糕图标替代 */}
         <div
           style={{
-            width: 120,
-            height: 120,
-            borderRadius: 60,
+            width: 100,
+            height: 100,
+            borderRadius: 50,
             background: `linear-gradient(135deg, ${C.mixue}, ${C.mixueGlow})`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            fontSize: 72,
-            boxShadow: `0 0 40px ${C.mixue}88`,
-            border: "4px solid #fff",
+            fontSize: 56,
+            boxShadow: `0 0 30px ${C.mixue}88`,
+            border: "3px solid #fff",
           }}
         >
           🍦
@@ -733,10 +858,11 @@ const Stage3: React.FC<{
         >
           <div
             style={{
-              fontSize: 24 * fontScale,
+              fontSize: 22 * fontScale,
               color: C.mixueGlow,
               letterSpacing: 4,
-              fontWeight: 600,
+              fontWeight: 700,
+              textShadow: "0 1px 4px rgba(0,0,0,0.8)",
             }}
           >
             蜜雪冰城
@@ -745,31 +871,31 @@ const Stage3: React.FC<{
             style={{
               display: "flex",
               alignItems: "baseline",
-              gap: 8,
+              gap: 6,
               lineHeight: 1,
-              marginTop: 4,
+              marginTop: 2,
             }}
           >
             <div
               style={{
                 fontFamily: FONT_NUM,
-                fontSize: 160 * fontScale,
+                fontSize: 120 * fontScale,
                 fontWeight: 900,
-                background: `linear-gradient(180deg, #fff 0%, ${C.mixueGlow} 100%)`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                letterSpacing: -4,
+                color: "#fff",
+                letterSpacing: -3,
                 fontVariantNumeric: "tabular-nums",
-                filter: `drop-shadow(0 6px 20px ${C.mixue}66)`,
+                textShadow: `0 0 20px ${C.mixueGlow}cc, ${strongStroke}`,
+                WebkitTextStroke: textStroke > 0 ? `${textStroke * 1.5}px ${C.mixue}` : "none",
               }}
             >
               {num.toFixed(1)}
             </div>
             <div
               style={{
-                fontSize: 64 * fontScale,
+                fontSize: 52 * fontScale,
                 fontWeight: 800,
                 color: C.mixueGlow,
+                textShadow: `0 0 16px ${C.mixueGlow}cc, 0 2px 6px rgba(0,0,0,0.8)`,
               }}
             >
               万
@@ -777,10 +903,11 @@ const Stage3: React.FC<{
           </div>
           <div
             style={{
-              fontSize: 20 * fontScale,
-              color: C.textSub,
-              marginTop: 4,
+              fontSize: 18 * fontScale,
+              color: "#ccc",
+              marginTop: 2,
               letterSpacing: 2,
+              textShadow: "0 1px 4px rgba(0,0,0,0.8)",
             }}
           >
             内地门店数
@@ -796,7 +923,9 @@ const Stage4: React.FC<{
   frame: number;
   fontScale: number;
   accentColor: string;
-}> = ({ frame, fontScale, accentColor }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fontScale, accentColor, textColor, textStroke }) => {
   const titleEnter = enter(frame, 0, 16);
   const subtitleEnter = enter(frame, 18, 16);
 
@@ -811,13 +940,17 @@ const Stage4: React.FC<{
   const pairs = [0, 1, 2, 3];
   const activeCount = Math.floor(pairProgress * pairs.length);
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 6}px rgba(0,0,0,0.85), 0 ${textStroke * 2}px ${textStroke * 6}px rgba(0,0,0,0.7)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 30 * fontScale,
+        gap: 24 * fontScale,
         width: "100%",
       }}
     >
@@ -825,13 +958,14 @@ const Stage4: React.FC<{
         style={{
           opacity: titleEnter.opacity,
           transform: `translateY(${titleEnter.translateY}px)`,
-          fontSize: 30 * fontScale,
-          color: C.textSub,
+          fontSize: 26 * fontScale,
+          color: "#e0e0e0",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         大街小巷上随处可见的
-        <span style={{ color: C.mixueGlow, fontWeight: 700 }}> 蜜雪冰城 </span>
+        <span style={{ color: C.mixueGlow, fontWeight: 700, textShadow: `0 0 10px ${C.mixueGlow}aa` }}> 蜜雪冰城 </span>
       </div>
 
       {/* 一对一配对可视化 */}
@@ -841,12 +975,12 @@ const Stage4: React.FC<{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: 18,
-          padding: "28px 48px",
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.1)",
-          borderRadius: 24,
-          backdropFilter: "blur(8px)",
+          gap: 16,
+          padding: "24px 40px",
+          background: "rgba(0,0,0,0.4)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          borderRadius: 20,
+          backdropFilter: "blur(10px)",
         }}
       >
         {pairs.map((i) => {
@@ -867,18 +1001,18 @@ const Stage4: React.FC<{
               >
                 <div
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
                     background: `linear-gradient(135deg, ${C.mixue}, ${C.mixueGlow})`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 38,
-                    border: "3px solid #fff",
+                    fontSize: 32,
+                    border: "2.5px solid #fff",
                     boxShadow: isActive
-                      ? `0 0 30px ${C.mixue}aa`
-                      : "0 4px 10px rgba(0,0,0,0.3)",
+                      ? `0 0 24px ${C.mixue}aa`
+                      : "0 4px 8px rgba(0,0,0,0.3)",
                     transition: "box-shadow 0.3s",
                   }}
                 >
@@ -886,10 +1020,11 @@ const Stage4: React.FC<{
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
-                    color: C.textDim,
+                    fontSize: 11,
+                    color: "#ddd",
                     fontWeight: 600,
                     letterSpacing: 1,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                   }}
                 >
                   蜜雪
@@ -899,12 +1034,12 @@ const Stage4: React.FC<{
               <div
                 style={{
                   opacity: isActive ? 1 : 0.15,
-                  fontSize: 28,
-                  color: isActive ? C.gold : C.textDim,
+                  fontSize: 24,
+                  color: isActive ? C.gold : "#888",
                   fontWeight: 800,
                   transform: isActive ? "scale(1.2)" : "scale(1)",
                   transition: "all 0.3s",
-                  filter: isActive ? `drop-shadow(0 0 8px ${C.gold})` : "none",
+                  filter: isActive ? `drop-shadow(0 0 6px ${C.gold})` : "none",
                 }}
               >
                 ⇄
@@ -922,18 +1057,18 @@ const Stage4: React.FC<{
               >
                 <div
                   style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 32,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 28,
                     background: `linear-gradient(135deg, ${accentColor}, ${C.luosifenGlow})`,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 38,
-                    border: "3px solid #fff",
+                    fontSize: 32,
+                    border: "2.5px solid #fff",
                     boxShadow: isActive
-                      ? `0 0 30px ${accentColor}aa`
-                      : "0 4px 10px rgba(0,0,0,0.3)",
+                      ? `0 0 24px ${accentColor}aa`
+                      : "0 4px 8px rgba(0,0,0,0.3)",
                     transition: "box-shadow 0.3s",
                   }}
                 >
@@ -941,10 +1076,11 @@ const Stage4: React.FC<{
                 </div>
                 <div
                   style={{
-                    fontSize: 12,
-                    color: C.textDim,
+                    fontSize: 11,
+                    color: "#ddd",
                     fontWeight: 600,
                     letterSpacing: 1,
+                    textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                   }}
                 >
                   螺蛳粉
@@ -954,9 +1090,9 @@ const Stage4: React.FC<{
               {i < pairs.length - 1 && (
                 <div
                   style={{
-                    width: 12,
+                    width: 10,
                     height: 2,
-                    background: "rgba(255,255,255,0.1)",
+                    background: "rgba(255,255,255,0.15)",
                     margin: "0 4px",
                   }}
                 />
@@ -971,9 +1107,10 @@ const Stage4: React.FC<{
           opacity: subtitleEnter.opacity,
           transform: `translateY(${subtitleEnter.translateY}px)`,
           textAlign: "center",
-          fontSize: 30 * fontScale,
+          fontSize: 28 * fontScale,
           fontWeight: 600,
-          color: C.text,
+          color: textColor,
+          textShadow: strongStroke,
         }}
       >
         每一家背后都对应着一家
@@ -981,10 +1118,10 @@ const Stage4: React.FC<{
           style={{
             color: accentColor,
             fontWeight: 800,
-            textShadow: `0 0 20px ${accentColor}66`,
+            textShadow: `0 0 20px ${accentColor}aa, ${strongStroke}`,
           }}
         >
-          螺蛳粉店
+          {" "}螺蛳粉店{" "}
         </span>
       </div>
     </div>
@@ -996,7 +1133,9 @@ const Stage5: React.FC<{
   frame: number;
   fps: number;
   fontScale: number;
-}> = ({ frame, fps, fontScale }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fps, fontScale, textColor, textStroke }) => {
   const line1 = enter(frame, 0, 16);
   const line2 = enter(frame, 15, 16);
   const badgeEnter = enter(frame, 32, 22);
@@ -1008,13 +1147,17 @@ const Stage5: React.FC<{
   });
   const badgeScale = 0.3 + 0.7 * Math.min(1, badgeSpring);
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 6}px rgba(0,0,0,0.85), 0 ${textStroke * 2}px ${textStroke * 6}px rgba(0,0,0,0.7)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 24 * fontScale,
+        gap: 20 * fontScale,
         width: "100%",
       }}
     >
@@ -1022,9 +1165,10 @@ const Stage5: React.FC<{
         style={{
           opacity: line1.opacity,
           transform: `translateY(${line1.translateY}px)`,
-          fontSize: 36 * fontScale,
-          color: C.textSub,
+          fontSize: 30 * fontScale,
+          color: "#e0e0e0",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         螺蛳粉能有如此规模
@@ -1033,9 +1177,10 @@ const Stage5: React.FC<{
         style={{
           opacity: line1.opacity,
           transform: `translateY(${line1.translateY}px)`,
-          fontSize: 36 * fontScale,
-          color: C.textSub,
+          fontSize: 30 * fontScale,
+          color: "#e0e0e0",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         意味着它已经悄悄从
@@ -1046,23 +1191,24 @@ const Stage5: React.FC<{
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 28,
-          margin: "8px 0",
+          gap: 22,
+          margin: "6px 0",
         }}
       >
         <div
           style={{
             opacity: line2.opacity,
-            transform: `translateX(${-line2.progress * 30}px)`,
-            padding: "10px 24px",
-            background: "rgba(255,255,255,0.05)",
-            border: "1.5px dashed rgba(255,255,255,0.2)",
-            borderRadius: 12,
-            fontSize: 30 * fontScale,
-            color: C.textDim,
+            transform: `translateX(${-line2.progress * 24}px)`,
+            padding: "8px 20px",
+            background: "rgba(0,0,0,0.4)",
+            border: "1.5px dashed rgba(255,255,255,0.3)",
+            borderRadius: 10,
+            fontSize: 26 * fontScale,
+            color: "#888",
             fontWeight: 600,
             textDecoration: "line-through",
-            textDecorationColor: C.textDim,
+            textDecorationColor: "#888",
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
           }}
         >
           小众单品
@@ -1070,10 +1216,11 @@ const Stage5: React.FC<{
         <div
           style={{
             opacity: line2.opacity,
-            fontSize: 60 * fontScale,
+            fontSize: 48 * fontScale,
             color: C.gold,
             fontWeight: 800,
-            filter: `drop-shadow(0 0 12px ${C.gold}aa)`,
+            filter: `drop-shadow(0 0 10px ${C.gold}aa)`,
+            textShadow: "0 1px 4px rgba(0,0,0,0.6)",
           }}
         >
           →
@@ -1083,24 +1230,24 @@ const Stage5: React.FC<{
           style={{
             opacity: badgeEnter.opacity,
             transform: `scale(${badgeScale}) rotate(${(1 - badgeEnter.progress) * -8}deg)`,
-            padding: "16px 36px",
+            padding: "12px 28px",
             background: `linear-gradient(135deg, ${C.gold}, ${C.goldDeep})`,
-            borderRadius: 18,
-            boxShadow: `0 12px 40px ${C.gold}88, inset 0 -4px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4)`,
-            border: "3px solid #fff8e1",
+            borderRadius: 14,
+            boxShadow: `0 10px 32px ${C.gold}88, inset 0 -3px 0 rgba(0,0,0,0.2), inset 0 2px 0 rgba(255,255,255,0.4)`,
+            border: "2.5px solid #fff8e1",
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            gap: 10,
           }}
         >
-          <div style={{ fontSize: 32 }}>👑</div>
+          <div style={{ fontSize: 28 }}>👑</div>
           <div
             style={{
-              fontSize: 42 * fontScale,
+              fontSize: 36 * fontScale,
               fontWeight: 900,
               color: "#3a1f00",
-              letterSpacing: 4,
-              textShadow: "0 2px 0 rgba(255,255,255,0.4)",
+              letterSpacing: 3,
+              textShadow: "0 1.5px 0 rgba(255,255,255,0.4)",
             }}
           >
             国 民 品 类
@@ -1112,10 +1259,11 @@ const Stage5: React.FC<{
         style={{
           opacity: enter(frame, 50, 18).opacity,
           transform: `translateY(${enter(frame, 50, 18).translateY}px)`,
-          fontSize: 28 * fontScale,
-          color: C.soup,
-          fontWeight: 500,
+          fontSize: 24 * fontScale,
+          color: C.gold,
+          fontWeight: 600,
           letterSpacing: 4,
+          textShadow: `0 0 12px ${C.gold}aa, 0 1px 4px rgba(0,0,0,0.6)`,
         }}
       >
         ✦ 悄 然 跃 升 ✦
@@ -1130,7 +1278,9 @@ const Stage6: React.FC<{
   fps: number;
   fontScale: number;
   accentColor: string;
-}> = ({ frame, fps, fontScale, accentColor }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fps, fontScale, accentColor, textColor, textStroke }) => {
   const sourceEnter = enter(frame, 0, 14);
   const titleEnter = enter(frame, 8, 14);
   const numEnter = enter(frame, 18, 16);
@@ -1160,14 +1310,18 @@ const Stage6: React.FC<{
     });
   });
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 8}px rgba(0,0,0,0.9), 0 ${textStroke * 3}px ${textStroke * 8}px rgba(0,0,0,0.8)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
-        gap: 24 * fontScale,
+        gap: 20 * fontScale,
         width: "100%",
-        maxWidth: 1500,
+        maxWidth: 1400,
         alignItems: "center",
       }}
     >
@@ -1175,13 +1329,14 @@ const Stage6: React.FC<{
         style={{
           opacity: sourceEnter.opacity,
           transform: `translateY(${sourceEnter.translateY}px)`,
-          fontSize: 20 * fontScale,
-          color: C.textSub,
-          letterSpacing: 4,
-          padding: "6px 18px",
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid rgba(255,255,255,0.1)",
+          fontSize: 18 * fontScale,
+          color: "#ddd",
+          letterSpacing: 3,
+          padding: "5px 16px",
+          background: "rgba(0,0,0,0.4)",
+          border: "1px solid rgba(255,255,255,0.15)",
           borderRadius: 999,
+          textShadow: "0 1px 3px rgba(0,0,0,0.8)",
         }}
       >
         柳州市商务局 · 2025 年数据
@@ -1191,10 +1346,11 @@ const Stage6: React.FC<{
         style={{
           opacity: titleEnter.opacity,
           transform: `translateY(${titleEnter.translateY}px)`,
-          fontSize: 32 * fontScale,
-          color: C.text,
+          fontSize: 28 * fontScale,
+          color: textColor,
           fontWeight: 600,
           letterSpacing: 1,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         柳州螺蛳粉全产业链收入
@@ -1207,17 +1363,18 @@ const Stage6: React.FC<{
           transform: `translateY(${numEnter.translateY}px) scale(${numScale})`,
           display: "flex",
           alignItems: "baseline",
-          gap: 12,
+          gap: 10,
           lineHeight: 1,
         }}
       >
         <div
           style={{
-            fontSize: 28 * fontScale,
+            fontSize: 24 * fontScale,
             color: C.gold,
             fontWeight: 600,
             alignSelf: "flex-start",
-            marginTop: 16,
+            marginTop: 12,
+            textShadow: "0 1px 4px rgba(0,0,0,0.8)",
           }}
         >
           突破
@@ -1225,24 +1382,23 @@ const Stage6: React.FC<{
         <div
           style={{
             fontFamily: FONT_NUM,
-            fontSize: 200 * fontScale,
+            fontSize: 160 * fontScale,
             fontWeight: 900,
-            background: `linear-gradient(180deg, #fff 0%, ${C.gold} 100%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            letterSpacing: -4,
+            color: "#fff",
+            letterSpacing: -3,
             fontVariantNumeric: "tabular-nums",
-            filter: `drop-shadow(0 8px 30px ${C.gold}66)`,
+            textShadow: `0 0 24px ${C.gold}cc, ${strongStroke}`,
+            WebkitTextStroke: textStroke > 0 ? `${textStroke * 1.5}px ${C.goldDeep}` : "none",
           }}
         >
           {num}
         </div>
         <div
           style={{
-            fontSize: 72 * fontScale,
+            fontSize: 60 * fontScale,
             fontWeight: 800,
             color: C.gold,
-            textShadow: `0 0 30px ${C.gold}aa`,
+            textShadow: `0 0 24px ${C.gold}cc, 0 2px 8px rgba(0,0,0,0.8)`,
           }}
         >
           亿元
@@ -1255,23 +1411,28 @@ const Stage6: React.FC<{
           opacity: enter(frame, 50, 16).opacity,
           transform: `translateY(${enter(frame, 50, 16).translateY}px)`,
           width: "100%",
-          maxWidth: 1200,
+          maxWidth: 1100,
           display: "flex",
           flexDirection: "column",
-          gap: 16,
-          marginTop: 12,
+          gap: 14,
+          marginTop: 8,
+          padding: "18px 28px",
+          background: "rgba(0,0,0,0.35)",
+          borderRadius: 18,
+          border: "1px solid rgba(255,255,255,0.1)",
+          backdropFilter: "blur(10px)",
         }}
       >
         {/* 横向堆叠条 */}
         <div
           style={{
             width: "100%",
-            height: 64,
-            background: "rgba(255,255,255,0.04)",
-            borderRadius: 32,
+            height: 52,
+            background: "rgba(255,255,255,0.06)",
+            borderRadius: 26,
             overflow: "hidden",
             display: "flex",
-            border: "1px solid rgba(255,255,255,0.08)",
+            border: "1px solid rgba(255,255,255,0.1)",
           }}
         >
           {segments.map((seg, i) => {
@@ -1286,15 +1447,18 @@ const Stage6: React.FC<{
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: 18 * fontScale,
+                  fontSize: 16 * fontScale,
                   fontWeight: 700,
                   color: "#1a0c08",
                   borderRight:
-                    i < segments.length - 1 ? "2px solid #0f0707" : "none",
-                  boxShadow: `inset 0 0 20px ${seg.color}88`,
+                    i < segments.length - 1 ? "2px solid rgba(0,0,0,0.3)" : "none",
+                  boxShadow: `inset 0 0 14px ${seg.color}66`,
+                  textShadow: "0 1px 0 rgba(255,255,255,0.3)",
+                  minWidth: w > 0 ? "1px" : "0",
+                  transition: "width 0.1s linear",
                 }}
               >
-                {seg.value}
+                {w > 8 ? `${seg.value}` : ""}
               </div>
             );
           })}
@@ -1305,8 +1469,9 @@ const Stage6: React.FC<{
           style={{
             display: "flex",
             justifyContent: "space-around",
-            gap: 16,
-            marginTop: 8,
+            gap: 12,
+            marginTop: 4,
+            flexWrap: "wrap",
           }}
         >
           {segments.map((seg, i) => {
@@ -1319,16 +1484,16 @@ const Stage6: React.FC<{
                   transform: `translateY(${itemEnter.translateY}px)`,
                   display: "flex",
                   alignItems: "center",
-                  gap: 12,
+                  gap: 10,
                 }}
               >
                 <div
                   style={{
-                    width: 16,
-                    height: 16,
-                    borderRadius: 4,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
                     background: `linear-gradient(135deg, ${seg.color}, ${seg.glow})`,
-                    boxShadow: `0 0 8px ${seg.color}`,
+                    boxShadow: `0 0 6px ${seg.color}aa`,
                   }}
                 />
                 <div
@@ -1339,18 +1504,20 @@ const Stage6: React.FC<{
                 >
                   <div
                     style={{
-                      fontSize: 22 * fontScale,
+                      fontSize: 18 * fontScale,
                       fontWeight: 700,
-                      color: C.text,
+                      color: "#fff",
+                      textShadow: "0 1px 4px rgba(0,0,0,0.8)",
                     }}
                   >
                     {seg.name}
                   </div>
                   <div
                     style={{
-                      fontSize: 16 * fontScale,
-                      color: C.textDim,
+                      fontSize: 14 * fontScale,
+                      color: "#bbb",
                       fontFamily: FONT_NUM,
+                      textShadow: "0 1px 3px rgba(0,0,0,0.8)",
                     }}
                   >
                     {seg.value} 亿元 · {seg.pct.toFixed(1)}%
@@ -1370,7 +1537,9 @@ const Stage7: React.FC<{
   frame: number;
   fontScale: number;
   accentColor: string;
-}> = ({ frame, fontScale, accentColor }) => {
+  textColor: string;
+  textStroke: number;
+}> = ({ frame, fontScale, accentColor, textColor, textStroke }) => {
   const line1 = enter(frame, 0, 16);
   const line2 = enter(frame, 14, 16);
   const line3 = enter(frame, 28, 16);
@@ -1378,13 +1547,17 @@ const Stage7: React.FC<{
 
   const pulse = 0.85 + Math.sin(frame * 0.15) * 0.15;
 
+  const strongStroke = textStroke > 0
+    ? `0 0 ${textStroke * 6}px rgba(0,0,0,0.85), 0 ${textStroke * 2}px ${textStroke * 6}px rgba(0,0,0,0.7)`
+    : "none";
+
   return (
     <div
       style={{
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 18 * fontScale,
+        gap: 16 * fontScale,
         width: "100%",
       }}
     >
@@ -1392,9 +1565,10 @@ const Stage7: React.FC<{
         style={{
           opacity: line1.opacity,
           transform: `translateY(${line1.translateY}px)`,
-          fontSize: 30 * fontScale,
-          color: C.textSub,
+          fontSize: 26 * fontScale,
+          color: "#ddd",
           letterSpacing: 2,
+          textShadow: "0 1px 5px rgba(0,0,0,0.8)",
         }}
       >
         所以
@@ -1404,24 +1578,26 @@ const Stage7: React.FC<{
         style={{
           opacity: line2.opacity,
           transform: `translateY(${line2.translateY}px)`,
-          fontSize: 36 * fontScale,
-          color: C.text,
+          fontSize: 32 * fontScale,
+          color: textColor,
           fontWeight: 600,
           letterSpacing: 1,
+          textShadow: strongStroke,
         }}
       >
         为什么螺蛳粉能从一个
-        <span style={{ color: C.soup }}> 地方小吃 </span>
+        <span style={{ color: "#ffe0b2", textShadow: strongStroke }}> 地方小吃 </span>
       </div>
 
       <div
         style={{
           opacity: line3.opacity,
           transform: `translateY(${line3.translateY}px)`,
-          fontSize: 36 * fontScale,
-          color: C.text,
+          fontSize: 32 * fontScale,
+          color: textColor,
           fontWeight: 600,
           letterSpacing: 1,
+          textShadow: strongStroke,
         }}
       >
         顺利完成
@@ -1429,7 +1605,7 @@ const Stage7: React.FC<{
           style={{
             color: accentColor,
             fontWeight: 800,
-            textShadow: `0 0 20px ${accentColor}66`,
+            textShadow: `0 0 20px ${accentColor}aa, ${strongStroke}`,
           }}
         >
           {" "}
@@ -1441,12 +1617,12 @@ const Stage7: React.FC<{
         style={{
           opacity: line4.opacity,
           transform: `translateY(${line4.translateY}px) scale(${pulse})`,
-          fontSize: 44 * fontScale,
+          fontSize: 40 * fontScale,
           color: C.gold,
           fontWeight: 800,
           letterSpacing: 2,
-          marginTop: 12,
-          textShadow: `0 0 30px ${C.gold}88`,
+          marginTop: 8,
+          textShadow: `0 0 24px ${C.gold}cc, ${strongStroke}`,
         }}
       >
         成 为 国 民 级 品 类 呢 ？

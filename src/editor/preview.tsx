@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CompositionRenderer } from "./renderer";
 import { setPlayerRef, useEditorStore } from "./store";
@@ -35,6 +35,19 @@ export const Preview: React.FC = React.memo(() => {
   const onFrameChange = useEditorStore((s) => s.onFrameChange);
   const onPlayStateChanged = useEditorStore((s) => s.onPlayStateChanged);
   const setCanvasSize = useEditorStore((s) => s.setCanvasSize);
+  const selectedClipId = useEditorStore((s) => s.selectedClipId);
+  const clips = useEditorStore((s) => s.clips);
+  const updateClipProps = useEditorStore((s) => s.updateClipProps);
+
+  const selectedClip = selectedClipId ? clips[selectedClipId] : null;
+  const isCircleShrink = selectedClip?.componentKey === "circleShrinkTransition";
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dragState, setDragState] = useState<
+    | { type: "move"; startX: number; startY: number; origX: number; origY: number }
+    | { type: "resize"; startX: number; startY: number; origRadius: number }
+    | null
+  >(null);
 
   const ref = useRef<PlayerRef>(null);
   const callbacksRef = useRef({ onFrameChange, onPlayStateChanged });
@@ -111,11 +124,10 @@ export const Preview: React.FC = React.memo(() => {
       {/* 预览画布 */}
       <div className="relative flex min-h-0 flex-1 items-center justify-center p-2">
         <div
-          className="overflow-hidden rounded-lg border-2 border-[#007aff]/20 shadow-lg shadow-black/10 ring-1 ring-[var(--separator)] dark:shadow-black/40 dark:ring-[var(--separator)]"
+          ref={containerRef}
+          className="relative overflow-hidden rounded-lg border-2 border-[#007aff]/20 shadow-lg shadow-black/10 ring-1 ring-[var(--separator)] dark:shadow-black/40 dark:ring-[var(--separator)]"
           style={{
             aspectRatio: `${width} / ${height}`,
-            // 竖屏：高度优先填满，宽度按比例；横屏：宽度优先填满，高度按比例。
-            // 配合 max-h/max-w 防止溢出，浏览器自动选择最大可用尺寸。
             maxHeight: "100%",
             maxWidth: "100%",
             height: isPortrait ? "100%" : "auto",
@@ -135,8 +147,174 @@ export const Preview: React.FC = React.memo(() => {
             autoPlay={false}
             clickToPlay={false}
           />
+
+          {/* 圆形转场交互控制点 */}
+          {isCircleShrink && selectedClip && (
+            <CircleHandleOverlay
+              clipProps={selectedClip.props as Record<string, number | string>}
+              canvasWidth={width}
+              canvasHeight={height}
+              containerRef={containerRef}
+              onUpdate={(patch) => {
+                if (selectedClipId) {
+                  updateClipProps(selectedClipId, patch);
+                }
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
   );
 });
+
+/**
+ * 圆形转场控制点叠加层
+ * 选中 circleShrinkTransition 时显示在预览区上，可拖动调整位置和大小
+ * 调整的是 finalX / finalY / finalRadius（最终状态）
+ */
+const CircleHandleOverlay: React.FC<{
+  clipProps: Record<string, number | string>;
+  canvasWidth: number;
+  canvasHeight: number;
+  containerRef: React.RefObject<HTMLDivElement>;
+  onUpdate: (patch: Record<string, number>) => void;
+}> = ({ clipProps, canvasWidth, canvasHeight, containerRef, onUpdate }) => {
+  const [dragging, setDragging] = useState<"move" | "resize" | null>(null);
+  const dragStartRef = useRef<{
+    mouseX: number;
+    mouseY: number;
+    origX: number;
+    origY: number;
+    origRadius: number;
+  } | null>(null);
+
+  // 最终圆心坐标（百分比转像素）
+  const finalX = (Number(clipProps.finalX) ?? 12) / 100;
+  const finalY = (Number(clipProps.finalY) ?? 82) / 100;
+  const finalRadius = Number(clipProps.finalRadius) ?? 100;
+
+  // 把画布坐标换算成容器像素坐标
+  const getScale = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return 1;
+    return el.clientWidth / canvasWidth;
+  }, [containerRef, canvasWidth]);
+
+  const handleMoveStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const scale = getScale();
+      setDragging("move");
+      dragStartRef.current = {
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        origX: finalX * canvasWidth,
+        origY: finalY * canvasHeight,
+        origRadius: finalRadius,
+      };
+    },
+    [finalX, finalY, finalRadius, canvasWidth, canvasHeight, getScale],
+  );
+
+  const handleResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragging("resize");
+      dragStartRef.current = {
+        mouseX: e.clientX,
+        mouseY: e.clientY,
+        origX: finalX * canvasWidth,
+        origY: finalY * canvasHeight,
+        origRadius: finalRadius,
+      };
+    },
+    [finalX, finalY, finalRadius, canvasWidth, canvasHeight],
+  );
+
+  // 全局鼠标移动/松开
+  useEffect(() => {
+    if (!dragging) return;
+
+    const onMove = (e: MouseEvent) => {
+      const start = dragStartRef.current;
+      if (!start) return;
+      const scale = getScale();
+      const dx = (e.clientX - start.mouseX) / scale;
+      const dy = (e.clientY - start.mouseY) / scale;
+
+      if (dragging === "move") {
+        const newX = Math.max(0, Math.min(100, ((start.origX + dx) / canvasWidth) * 100));
+        const newY = Math.max(0, Math.min(100, ((start.origY + dy) / canvasHeight) * 100));
+        onUpdate({ finalX: Math.round(newX * 10) / 10, finalY: Math.round(newY * 10) / 10 });
+      } else if (dragging === "resize") {
+        // 从圆心到鼠标的距离变化 => 半径变化
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const sign = dx + dy > 0 ? 1 : -1;
+        const newR = Math.max(20, Math.min(Math.max(canvasWidth, canvasHeight), start.origRadius + sign * dist));
+        onUpdate({ finalRadius: Math.round(newR) });
+      }
+    };
+
+    const onUp = () => {
+      setDragging(null);
+      dragStartRef.current = null;
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [dragging, canvasWidth, canvasHeight, getScale, onUpdate]);
+
+  const scale = getScale();
+  const cx = finalX * 100;
+  const cy = finalY * 100;
+  const r = (finalRadius / canvasWidth) * 100; // 用百分比宽度表示半径
+
+  return (
+    <div
+      className="pointer-events-none absolute inset-0"
+      style={{ userSelect: "none" }}
+    >
+      {/* 圆形控制框 */}
+      <div
+        className="pointer-events-auto absolute rounded-full border-2 border-dashed border-[#007aff] cursor-move"
+        style={{
+          left: `calc(${cx}% - ${finalRadius * scale}px)`,
+          top: `calc(${cy}% - ${finalRadius * scale}px)`,
+          width: finalRadius * 2 * scale,
+          height: finalRadius * 2 * scale,
+          boxShadow: "0 0 0 1px rgba(0,122,255,0.3)",
+        }}
+        onMouseDown={handleMoveStart}
+      >
+        {/* 右下角缩放手柄 */}
+        <div
+          className="pointer-events-auto absolute -right-1.5 -bottom-1.5 h-3 w-3 rounded-full border-2 border-white bg-[#007aff] cursor-nwse-resize shadow-sm"
+          onMouseDown={handleResizeStart}
+          title="拖动调整大小"
+        />
+        {/* 圆心标记 */}
+        <div
+          className="pointer-events-none absolute left-1/2 top-1/2 h-1 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#007aff]"
+        />
+      </div>
+
+      {/* 提示文字 */}
+      <div
+        className="pointer-events-none absolute rounded bg-[#007aff] px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm"
+        style={{
+          left: `calc(${cx}% - ${finalRadius * scale}px)`,
+          top: `calc(${cy}% - ${finalRadius * scale}px - 22px)`,
+        }}
+      >
+        {Math.round(finalX)}%, {Math.round(finalY)}% · r={Math.round(finalRadius)}
+      </div>
+    </div>
+  );
+};

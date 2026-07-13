@@ -101,6 +101,11 @@ interface EditorStore {
    * 固定 5 秒（150 帧 @30fps），加到 overlay 轨道。
    */
   addImageClip: (imageSrc: string, imageName?: string) => void;
+  /**
+   * 添加圆形收缩转场到 overlay 轨道。
+   * 默认 60 帧（2s），src 指向指定视频。
+   */
+  addCircleShrinkClip: (videoSrc: string, videoName?: string) => void;
   removeClip: (clipId: string) => void;
   selectClip: (clipId: string | null) => void;
   updateClipProps: (clipId: string, props: Record<string, unknown>) => void;
@@ -306,6 +311,72 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set((s) => {
       const newTracks = s.tracks.map((t) =>
         t.id === targetTrack?.id ? { ...t, clipIds: [...t.clipIds, clip.id] } : t,
+      );
+      const newClips = { ...s.clips, [clip.id]: clip };
+      return {
+        clips: newClips,
+        tracks: newTracks,
+        totalDuration: recomputePreviewDuration(newTracks, newClips),
+        selectedClipId: clip.id,
+      };
+    });
+  },
+
+  addCircleShrinkClip: (videoSrc, videoName) => {
+    const state = get();
+    // 加到 overlay 轨道（没有就新建）
+    let targetTrack = state.tracks.find((t) => t.kind === "overlay");
+    if (!targetTrack) {
+      get().addTrack("overlay");
+      targetTrack = get().tracks.find((t) => t.kind === "overlay");
+      if (!targetTrack) return;
+    }
+
+    let start = 0;
+    for (const cid of targetTrack.clipIds) {
+      const c = state.clips[cid];
+      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    }
+
+    // 默认 2 秒 @30fps = 60 帧
+    const fps = state.fps || 30;
+    const duration = 2 * fps;
+
+    const clip: Clip = {
+      id: nanoid(),
+      componentKey: "circleShrinkTransition",
+      name: videoName ? `圆形转场·${videoName}` : "圆形收缩转场",
+      start,
+      duration,
+      props: {
+        src: videoSrc,
+        contentMode: "scale",
+        focusX: 20,
+        focusY: 75,
+        focusRadius: 220,
+        finalX: 12,
+        finalY: 82,
+        finalRadius: 100,
+        shrinkDuration: 18,
+        flyDelay: 6,
+        flyDuration: 30,
+        borderWidth: 5,
+        borderColor: "#ffffff",
+        glowIntensity: 0.8,
+        bgDim: 0.4,
+        bgVideoOpacity: 1,
+        objectFit: "cover",
+        volume: 1,
+        muted: 0,
+        startFrom: 0,
+      },
+    };
+
+    set((s) => {
+      const newTracks = s.tracks.map((t) =>
+        t.id === targetTrack?.id
+          ? { ...t, clipIds: [...t.clipIds, clip.id] }
+          : t,
       );
       const newClips = { ...s.clips, [clip.id]: clip };
       return {
