@@ -2,8 +2,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/postcss";
 import { bundle } from "@remotion/bundler";
-import { renderMedia, selectComposition } from "@remotion/renderer";
-import { execFile } from "node:child_process";
+import { renderMedia, selectComposition, ensureBrowser } from "@remotion/renderer";
+import { execFile, spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -124,17 +124,99 @@ interface ExportJob {
 }
 const jobs = new Map<string, ExportJob>();
 
+// 中文文件名 → ASCII 文件名的映射表（每次 bundle 时重建）
+const mediaFileNameMap: Record<string, string> = {};
+
 // bundle 缓存：第一次导出时 bundle（10-30s），后续复用
 let bundlePromise: Promise<string> | null = null;
 async function getBundle(): Promise<string> {
   if (!bundlePromise) {
+    const publicDir = path.resolve(__dirname, "public");
+    console.log(`[bundle] entryPoint=${path.resolve(__dirname, "src/index.ts")}`);
+    console.log(`[bundle] publicDir=${publicDir}, exists=${fs.existsSync(publicDir)}`);
+    if (fs.existsSync(publicDir)) {
+      const uploadsDir = path.join(publicDir, "uploads");
+      if (fs.existsSync(uploadsDir)) {
+        const files = fs.readdirSync(uploadsDir);
+        console.log(`[bundle] uploads/ has ${files.length} files: ${files.slice(0, 10).join(", ")}`);
+      } else {
+        console.log(`[bundle] WARNING: uploads/ dir not found at ${uploadsDir}`);
+      }
+    }
+    // 固定 bundle 输出到 E 盘，避免使用 C 盘临时目录
+    const bundleOutputDir = path.resolve(__dirname, ".tmp/remotion-bundle");
     bundlePromise = bundle({
       entryPoint: path.resolve(__dirname, "src/index.ts"),
-      // 用 webpack override 避免某些 Remotion 内部依赖问题
+      // Remotion v4 默认不复制 public 目录，渲染时 /uploads/ 等资源会 404
+      publicDir,
+      outputDir: bundleOutputDir,
       onProgress: () => {},
+    }).then((serveUrl) => {
+      console.log(`[bundle] done, serveUrl=${serveUrl}`);
+      // 手动复制 uploads/ 到 serve 目录，同时将中文文件名重命名为纯 ASCII
+      // 避免 Remotion 内部 HTTP 服务器无法正确处理 URL 编码的中文路径
+      const srcUploads = path.join(publicDir, "uploads");
+      const dstUploads = path.join(serveUrl, "uploads");
+      if (fs.existsSync(srcUploads)) {
+        fs.mkdirSync(dstUploads, { recursive: true });
+        // 清空旧映射
+        Object.keys(mediaFileNameMap).forEach((k) => delete mediaFileNameMap[k]);
+        for (const file of fs.readdirSync(srcUploads)) {
+          const srcFile = path.join(srcUploads, file);
+          if (!fs.statSync(srcFile).isFile()) continue;
+          let dstName = file;
+          if (/[^\x00-\x7F]/.test(file)) {
+            const ext = path.extname(file);
+            const hash = Buffer.from(file, "utf-8").toString("base64url").slice(0, 24);
+            dstName = `m_${hash}${ext}`;
+            mediaFileNameMap[file] = dstName;
+          }
+          const dstFile = path.join(dstUploads, dstName);
+          fs.copyFileSync(srcFile, dstFile);
+        }
+        const files = fs.readdirSync(dstUploads);
+        console.log(`[bundle] serve dir uploads/ has ${files.length} files: ${files.slice(0, 10).join(", ")}`);
+        if (Object.keys(mediaFileNameMap).length > 0) {
+          console.log(`[bundle] filename map: ${JSON.stringify(mediaFileNameMap)}`);
+        }
+      } else {
+        console.log(`[bundle] WARNING: source uploads/ not found at ${srcUploads}`);
+      }
+      return serveUrl;
     });
   }
   return bundlePromise;
+}
+
+/**
+ * 根据 mediaFileNameMap 替换 payload 中 clips 的 src 路径。
+ * 保持 /uploads/xxx 相对路径（OffthreadVideo 通过 serve URL 解析为 HTTP URL）。
+ */
+function applyFileNameMap(payload: {
+  tracks: unknown;
+  clips: unknown;
+  totalDuration: number;
+  fps?: number;
+  width?: number;
+  height?: number;
+}) {
+  if (Object.keys(mediaFileNameMap).length === 0) return payload;
+  const cloned = JSON.parse(JSON.stringify(payload)) as typeof payload;
+  const clips = cloned.clips as Record<string, { props: Record<string, unknown> }>;
+  for (const clip of Object.values(clips || {})) {
+    const src = clip.props?.src;
+    if (typeof src === "string") {
+      let resolved = src;
+      for (const [orig, ascii] of Object.entries(mediaFileNameMap)) {
+        if (resolved.includes(orig)) {
+          resolved = resolved.replace(orig, ascii);
+          break;
+        }
+      }
+      clip.props.src = resolved;
+    }
+  }
+  return cloned;
 }
 
 // 确保输出目录存在
@@ -511,43 +593,93 @@ export default defineConfig({
 
             // 异步渲染
             try {
+              // 确保 Remotion Chrome 已安装
+              await ensureBrowser();
+              console.log(`[export:${jobId}] browser ensured`);
+
               const serveUrl = await getBundle();
+
+              // 将中文文件名替换为 ASCII 文件名（避免渲染时 HTTP 404）
+              const renderPayload = applyFileNameMap(payload);
+
+              // 日志：打印 clips 信息
+              const clipsObj = renderPayload.clips as Record<string, { componentKey: string; props: Record<string, unknown>; start: number; duration: number }>;
+              const tracksArr = renderPayload.tracks as Array<{ id: string; kind: string; clipIds: string[] }>;
+              console.log(`[export:${jobId}] serveUrl=${serveUrl}`);
+              console.log(`[export:${jobId}] tracks=${JSON.stringify(tracksArr?.map(t => ({ id: t.id, kind: t.kind, clips: t.clipIds })) || [])}`);
+              for (const [cid, clip] of Object.entries(clipsObj || {})) {
+                console.log(`[export:${jobId}] clip ${cid}: key=${clip.componentKey}, start=${clip.start}, dur=${clip.duration}, src=${clip.props?.src}, startFrom=${clip.props?.startFrom}`);
+              }
+
+              // 验证视频文件是否可被 ffmpeg 读取
+              for (const [cid, clip] of Object.entries(clipsObj || {})) {
+                const clipSrc = clip.props?.src as string;
+                if (clipSrc && clip.componentKey === "videoClip") {
+                  const localPath = path.join(serveUrl, clipSrc.replace(/^\//, ""));
+                  console.log(`[export:${jobId}] verifying video: ${localPath}, exists=${fs.existsSync(localPath)}`);
+                  if (fs.existsSync(localPath)) {
+                    const stat = fs.statSync(localPath);
+                    console.log(`[export:${jobId}] video size: ${stat.size} bytes`);
+                    // 用 ffmpeg 检查视频信息
+                    await new Promise<void>((resolve) => {
+                      const proc = spawn(FFMPEG_PATH, ["-i", localPath]);
+                      let stderr = "";
+                      proc.stderr.on("data", (d) => { stderr += d.toString(); });
+                      proc.on("close", () => {
+                        const durMatch = stderr.match(/Duration: (\d+):(\d+):([\d.]+)/);
+                        const vidMatch = stderr.match(/Stream.*Video.*?(\d+)x(\d+)/);
+                        console.log(`[export:${jobId}] ffmpeg probe: duration=${durMatch ? durMatch[0] : "N/A"}, video=${vidMatch ? vidMatch[0] : "N/A"}`);
+                        resolve();
+                      });
+                    });
+                  }
+                }
+              }
+              console.log(`[export:${jobId}] totalDuration=${renderPayload.totalDuration}, fps=${renderPayload.fps}, ${renderPayload.width}x${renderPayload.height}`);
+
               const composition = await selectComposition({
                 serveUrl,
                 id: "EditorExport",
                 inputProps: {
-                  tracks: payload.tracks,
-                  clips: payload.clips,
+                  tracks: renderPayload.tracks,
+                  clips: renderPayload.clips,
                 },
               });
+              console.log(`[export:${jobId}] composition: id=${composition.id}, durationInFrames=${composition.durationInFrames}, fps=${composition.fps}, ${composition.width}x${composition.height}`);
 
               // 覆盖时长（Composition 默认 600，按实际 totalDuration）
               const total = Math.max(
                 1,
-                Math.round(payload.totalDuration || 600),
+                Math.round(renderPayload.totalDuration || 600),
               );
               composition.durationInFrames = total;
-              if (payload.fps) composition.fps = payload.fps;
-              if (payload.width) composition.width = payload.width;
-              if (payload.height) composition.height = payload.height;
+              if (renderPayload.fps) composition.fps = renderPayload.fps;
+              if (renderPayload.width) composition.width = renderPayload.width;
+              if (renderPayload.height) composition.height = renderPayload.height;
 
               const outDir = ensureExportDir();
               const outputPath = path.join(outDir, `${jobId}.mp4`);
 
+              console.log(`[export:${jobId}] starting renderMedia → ${outputPath}`);
               await renderMedia({
                 composition,
                 serveUrl,
                 codec: "h264",
                 outputLocation: outputPath,
+                concurrency: 1,
                 inputProps: {
-                  tracks: payload.tracks,
-                  clips: payload.clips,
+                  tracks: renderPayload.tracks,
+                  clips: renderPayload.clips,
+                },
+                onBrowserLog: (log) => {
+                  console.log(`[export:${jobId}][browser] ${log.type}: ${log.text}`);
                 },
                 onProgress: ({ progress }) => {
                   const job = jobs.get(jobId);
                   if (job) job.progress = progress;
                 },
               });
+              console.log(`[export:${jobId}] renderMedia done, file exists=${fs.existsSync(outputPath)}, size=${fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0} bytes`);
 
               // 尝试将字幕嵌入 MP4
               const fps = payload.fps || 30;

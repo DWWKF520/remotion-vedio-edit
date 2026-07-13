@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AbsoluteFill,
-  Video,
+  OffthreadVideo,
   interpolate,
   useCurrentFrame,
   useVideoConfig,
@@ -192,7 +192,7 @@ export const CircleShrinkTransition: React.FC<{
     <AbsoluteFill style={{ overflow: "hidden" }}>
       {/* 底层全屏视频（变暗） */}
       <div style={{ position: "absolute", inset: 0, opacity: bgVideoOpacity }}>
-        <Video
+        <OffthreadVideo
           startFrom={Math.floor(startFrom * 30)}
           src={safeSrc}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
@@ -238,7 +238,7 @@ export const CircleShrinkTransition: React.FC<{
               justifyContent: "center",
             }}
           >
-            <Video
+            <OffthreadVideo
               startFrom={Math.floor(startFrom * 30)}
               src={safeSrc}
               style={{
@@ -261,7 +261,7 @@ export const CircleShrinkTransition: React.FC<{
               top: -(curY - curRadius),
             }}
           >
-            <Video
+            <OffthreadVideo
               startFrom={Math.floor(startFrom * 30)}
               src={safeSrc}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}

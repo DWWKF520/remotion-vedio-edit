@@ -1,7 +1,7 @@
 import React from "react";
 import {
   AbsoluteFill,
-  Video,
+  OffthreadVideo,
   interpolate,
   useVideoConfig,
 } from "remotion";
@@ -68,9 +68,6 @@ export const VideoClip: React.FC<{
 }) => {
   const vcfg = useVideoConfig();
 
-  const width = vcfg.width || videoWidth;
-  const height = vcfg.height || videoHeight;
-
   // 编码 URL（处理中文/空格文件名）
   const safeSrc = React.useMemo(() => {
     if (/^(https?:|data:|blob:)/i.test(src)) return src;
@@ -81,10 +78,6 @@ export const VideoClip: React.FC<{
       .join("/");
     return query ? `${encodedPath}?${query}` : encodedPath;
   }, [src]);
-
-  // 计算视频在画布中的最大尺寸（保持宽高比）
-  const maxW = width * 0.96 * scale;
-  const maxH = height * 0.96 * scale;
 
   // startFrom 是秒，转成帧交给 <Video>
   const startFromFrames = Math.max(
@@ -105,6 +98,10 @@ export const VideoClip: React.FC<{
     [muted, volume],
   );
 
+  // position/scale 通过 transform 实现，避免 auto 尺寸在渲染时失效
+  const translateX = (positionX - 50);
+  const translateY = (positionY - 50);
+
   return (
     <AbsoluteFill
       style={{
@@ -112,37 +109,24 @@ export const VideoClip: React.FC<{
         overflow: "hidden",
       }}
     >
-      <div
+      <OffthreadVideo
+        src={src}
+        startFrom={startFromFrames}
+        playbackRate={playbackRate}
+        volume={volumeCallback}
+        muted={!!muted}
         style={{
-          position: "absolute",
-          left: `${positionX}%`,
-          top: `${positionY}%`,
-          transform: "translate(-50%, -50%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          width: "100%",
+          height: "100%",
+          objectFit: fit as "contain" | "cover" | "fill",
+          borderRadius,
+          display: "block",
+          transform: `translate(${translateX}%, ${translateY}%) scale(${scale})`,
           filter: showShadow
             ? "drop-shadow(0 12px 32px rgba(0,0,0,0.45))"
             : "none",
         }}
-      >
-        <Video
-          src={safeSrc}
-          startFrom={startFromFrames}
-          playbackRate={playbackRate}
-          volume={volumeCallback}
-          muted={!!muted}
-          style={{
-            maxWidth: maxW,
-            maxHeight: maxH,
-            width: "auto",
-            height: "auto",
-            objectFit: fit as "contain" | "cover" | "fill",
-            borderRadius,
-            display: "block",
-          }}
-        />
-      </div>
+      />
     </AbsoluteFill>
   );
 };

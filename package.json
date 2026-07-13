@@ -40,6 +40,8 @@
     "lint": "eslint src && tsc"
   },
   "sideEffects": [
-    "*.css"
+    "*.css",
+    "**/manifest.ts",
+    "**/auto-register-components.ts"
   ]
 }
