@@ -50,4 +50,10 @@ export interface ComponentManifest {
   propSchema: PropSchema[];
   /** 分类：materials（素材）或 subtitles（字幕）。默认 materials */
   category?: ComponentCategory;
+  /**
+   * 是否隐藏（不出现在素材库列表中）。
+   * 用于被其他功能内部调用的组件（如 videoClip 由视频库统一管理）。
+   * 默认 false。
+   */
+  hidden?: boolean;
 }

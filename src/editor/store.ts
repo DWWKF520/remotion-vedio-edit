@@ -85,6 +85,22 @@ interface EditorStore {
 
   addClipFromRegistry: (componentKey: string) => void;
   addClip: (componentKey: string, trackId: string) => void;
+  /**
+   * 添加视频片段到轨道。
+   * videoSrc 是 blob: URL 或 /uploads/... 路径
+   * durationFrames 是视频时长（帧）
+   * 自动加到第一个 background 轨道（没有则新建）
+   */
+  addVideoClip: (
+    videoSrc: string,
+    durationFrames: number,
+    videoName?: string,
+  ) => void;
+  /**
+   * 添加图片片段到轨道。
+   * 固定 5 秒（150 帧 @30fps），加到 overlay 轨道。
+   */
+  addImageClip: (imageSrc: string, imageName?: string) => void;
   removeClip: (clipId: string) => void;
   selectClip: (clipId: string | null) => void;
   updateClipProps: (clipId: string, props: Record<string, unknown>) => void;
@@ -179,6 +195,117 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     set((s) => {
       const newTracks = s.tracks.map((t) =>
         t.id === trackId ? { ...t, clipIds: [...t.clipIds, clip.id] } : t,
+      );
+      const newClips = { ...s.clips, [clip.id]: clip };
+      return {
+        clips: newClips,
+        tracks: newTracks,
+        totalDuration: recomputePreviewDuration(newTracks, newClips),
+        selectedClipId: clip.id,
+      };
+    });
+  },
+
+  addVideoClip: (videoSrc, durationFrames, videoName) => {
+    const state = get();
+    // 找第一个 background 轨道，没有就新建
+    let targetTrack = state.tracks.find((t) => t.kind === "background");
+    if (!targetTrack) {
+      get().addTrack("background");
+      targetTrack = get().tracks.find((t) => t.kind === "background");
+      if (!targetTrack) return;
+    }
+
+    // 计算起始帧：接在最后一个 clip 后面
+    let start = 0;
+    for (const cid of targetTrack.clipIds) {
+      const c = state.clips[cid];
+      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    }
+
+    const clip: Clip = {
+      id: nanoid(),
+      componentKey: "videoClip",
+      name: videoName || "视频片段",
+      start,
+      duration: Math.max(1, durationFrames),
+      props: {
+        src: videoSrc,
+        volume: 1,
+        muted: 0,
+        playbackRate: 1,
+        startFrom: 0,
+        fit: "contain",
+        backgroundColor: "#000000",
+        positionX: 50,
+        positionY: 50,
+        scale: 1,
+        borderRadius: 0,
+        showShadow: 1,
+      },
+    };
+
+    set((s) => {
+      const newTracks = s.tracks.map((t) =>
+        t.id === targetTrack?.id ? { ...t, clipIds: [...t.clipIds, clip.id] } : t,
+      );
+      const newClips = { ...s.clips, [clip.id]: clip };
+      return {
+        clips: newClips,
+        tracks: newTracks,
+        totalDuration: recomputePreviewDuration(newTracks, newClips),
+        selectedClipId: clip.id,
+      };
+    });
+  },
+
+  addImageClip: (imageSrc, imageName) => {
+    const state = get();
+    // 图片加到 overlay 轨道（没有就新建）
+    let targetTrack = state.tracks.find((t) => t.kind === "overlay");
+    if (!targetTrack) {
+      get().addTrack("overlay");
+      targetTrack = get().tracks.find((t) => t.kind === "overlay");
+      if (!targetTrack) return;
+    }
+
+    // 起始帧：接在最后一个 clip 后面
+    let start = 0;
+    for (const cid of targetTrack.clipIds) {
+      const c = state.clips[cid];
+      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    }
+
+    // 固定 5 秒 @30fps = 150 帧
+    const fps = state.fps || 30;
+    const duration = 5 * fps;
+
+    const clip: Clip = {
+      id: nanoid(),
+      componentKey: "imageClip",
+      name: imageName || "图片片段",
+      start,
+      duration,
+      props: {
+        src: imageSrc,
+        fit: "contain",
+        positionX: 50,
+        positionY: 50,
+        scale: 1,
+        rotate: 0,
+        opacity: 1,
+        borderRadius: 0,
+        backgroundColor: "transparent",
+        showShadow: 0,
+        kenBurns: 0,
+        fadeIn: 10,
+        fadeOut: 10,
+      },
+    };
+
+    set((s) => {
+      const newTracks = s.tracks.map((t) =>
+        t.id === targetTrack?.id ? { ...t, clipIds: [...t.clipIds, clip.id] } : t,
       );
       const newClips = { ...s.clips, [clip.id]: clip };
       return {

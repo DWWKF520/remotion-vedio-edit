@@ -3,13 +3,14 @@ import { registry } from "./registry";
 import { useEditorStore } from "./store";
 import type { ComponentManifest } from "./registry-types";
 import type { Preset } from "./types";
+import { VideoLibrary } from "./video-library";
 
 // 字幕类组件 category
 const SUBTITLE_CATEGORY = "subtitles";
 
-type Tab = "materials" | "subtitles" | "presets";
+type Tab = "materials" | "videos" | "subtitles" | "presets";
 
-/** 素材库面板：素材库 + 字幕库 + 预设 三个独立 tab */
+/** 素材库面板：素材库 + 视频 + 字幕库 + 预设 四个独立 tab */
 export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
   collapsed,
 }) => {
@@ -18,8 +19,10 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
 
   const items =
     tab === "materials"
-      ? registry.filter((d) => d.category !== SUBTITLE_CATEGORY)
-      : registry.filter((d) => d.category === SUBTITLE_CATEGORY);
+      ? registry.filter(
+          (d) => d.category !== SUBTITLE_CATEGORY && !d.hidden,
+        )
+      : registry.filter((d) => d.category === SUBTITLE_CATEGORY && !d.hidden);
 
   // 收起状态：窄条仅显示图标
   if (collapsed) {
@@ -48,6 +51,11 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
           label="素材库"
         />
         <TabBtn
+          active={tab === "videos"}
+          onClick={() => setTab("videos")}
+          label="视频"
+        />
+        <TabBtn
           active={tab === "subtitles"}
           onClick={() => setTab("subtitles")}
           label="字幕库"
@@ -59,8 +67,10 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
         />
       </div>
 
-      {/* 预设 tab */}
-      {tab === "presets" ? (
+      {/* 视频 tab */}
+      {tab === "videos" ? (
+        <VideoLibrary />
+      ) : tab === "presets" ? (
         <PresetPanel />
       ) : (
         /* 组件列表 */

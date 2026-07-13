@@ -9,6 +9,7 @@ const manifest: ComponentManifest = {
     "把 .mp4 / .webm 视频文件作为可拖入时间线的素材。默认指向 /uploads/智谱清言.mp4（5.13s），可改 src 切换其他视频。",
   icon: "🎬",
   accentColor: "#8b5cf6",
+  hidden: true,
   component: VideoClip as unknown as ComponentManifest["component"],
   defaultProps: {
     src: "/uploads/智谱清言.mp4",

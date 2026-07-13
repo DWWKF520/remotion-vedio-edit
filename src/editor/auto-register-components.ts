@@ -16,3 +16,4 @@ import "../components/SpeakingPerson/manifest";
 import "../components/ReportHighlight/manifest";
 import "../components/LuosifenAnimation/manifest";
 import "../components/VideoClip/manifest";
+import "../components/ImageClip/manifest";

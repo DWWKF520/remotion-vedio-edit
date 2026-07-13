@@ -19,7 +19,7 @@ import {
  * - 可选入场淡入 / 缩放动画
  */
 
-const IMAGE_BASE = "/uploads/生成说话图片做动画";
+const IMAGE_BASE = "/src/components/SpeakingPerson/生成说话图片做动画";
 
 // 4 张图片的实际文件名（带空格和中文，需 encodeURI 编码）
 // 序号：4 = 无编号的 "生成说话图片做动画.png"，1/2/3 = 带 (n) 后缀
