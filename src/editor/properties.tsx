@@ -1,6 +1,7 @@
 import React from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
+import { useVideoEffects } from "./video-effects";
 import { EFFECT_LIST } from "./types";
 import type { ClipEffect, EffectType } from "./types";
 
@@ -16,6 +17,10 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
 
   const clip = selectedClipId ? clips[selectedClipId] : null;
   const def = clip ? getComponentDef(clip.componentKey) : null;
+  // 视频特效列表（仅对视频片段显示应用入口）
+  const videoEffects = useVideoEffects();
+  const isVideoClip = clip?.componentKey === "videoClip";
+  const videoSrc = isVideoClip ? String(clip?.props.src ?? "") : "";
 
   // 收起状态：窄条仅显示图标提示
   if (collapsed) {
@@ -115,6 +120,30 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
                 onChange={(e) => updateClipEffect(clip.id, "exit", e)}
               />
             </div>
+
+            {/* 视频特效：仅对视频片段显示，点击对该视频应用对应特效（加到 Overlay 轨道） */}
+            {isVideoClip && videoSrc && videoEffects.length > 0 && (
+              <div className="border-t border-[var(--separator)] pt-2 dark:border-[var(--separator)]">
+                <div className={`${labelClass} mb-2`}>视频特效</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {videoEffects.map((e) => (
+                    <button
+                      key={e.key}
+                      onClick={() => e.apply(videoSrc, clip.name)}
+                      title={e.title}
+                      className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-white shadow-sm transition-transform hover:scale-105"
+                      style={{ background: e.color }}
+                    >
+                      {e.icon}
+                      <span>{e.label}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-1.5 text-[9px] text-[#8e8e93] dark:text-[#8e8e93]">
+                  点击将当前视频作为特效加到 Overlay 轨道
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-[var(--separator)] pt-2 dark:border-[var(--separator)]">
               <div className={`${labelClass} mb-2`}>属性 Props</div>

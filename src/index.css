@@ -158,6 +158,24 @@ html.dark {
   background-clip: content-box;
 }
 
+/* 媒体库列表纵向滚动条 — 稍细且更醒目 */
+.vl-list-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--text-quaternary) transparent;
+}
+.vl-list-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.vl-list-scroll::-webkit-scrollbar-thumb {
+  background: var(--text-quaternary);
+  border: none;
+  background-clip: content-box;
+}
+.vl-list-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+  background-clip: content-box;
+}
+
 /* ===== range 滑块 — Apple Blue ===== */
 input[type="range"] {
   -webkit-appearance: none;

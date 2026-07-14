@@ -106,6 +106,12 @@ interface EditorStore {
    * 默认 60 帧（2s），src 指向指定视频。
    */
   addCircleShrinkClip: (videoSrc: string, videoName?: string) => void;
+  /**
+   * 添加视频右移渐变转场到 overlay 轨道。
+   * 视频向右移动并缩小，左侧露出背景便于叠加讲解动画。
+   * 默认 90 帧（3s），src 指向指定视频。
+   */
+  addSlideRightClip: (videoSrc: string, videoName?: string) => void;
   removeClip: (clipId: string) => void;
   selectClip: (clipId: string | null) => void;
   updateClipProps: (clipId: string, props: Record<string, unknown>) => void;
@@ -369,6 +375,70 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         volume: 1,
         muted: 0,
         startFrom: 0,
+      },
+    };
+
+    set((s) => {
+      const newTracks = s.tracks.map((t) =>
+        t.id === targetTrack?.id
+          ? { ...t, clipIds: [...t.clipIds, clip.id] }
+          : t,
+      );
+      const newClips = { ...s.clips, [clip.id]: clip };
+      return {
+        clips: newClips,
+        tracks: newTracks,
+        totalDuration: recomputePreviewDuration(newTracks, newClips),
+        selectedClipId: clip.id,
+      };
+    });
+  },
+
+  addSlideRightClip: (videoSrc, videoName) => {
+    const state = get();
+    // 加到 overlay 轨道（没有就新建）
+    let targetTrack = state.tracks.find((t) => t.kind === "overlay");
+    if (!targetTrack) {
+      get().addTrack("overlay");
+      targetTrack = get().tracks.find((t) => t.kind === "overlay");
+      if (!targetTrack) return;
+    }
+
+    let start = 0;
+    for (const cid of targetTrack.clipIds) {
+      const c = state.clips[cid];
+      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    }
+
+    // 默认 3 秒 @30fps = 90 帧
+    const fps = state.fps || 30;
+    const duration = 3 * fps;
+
+    const clip: Clip = {
+      id: nanoid(),
+      componentKey: "slideRightTransition",
+      name: videoName ? `右移渐变·${videoName}` : "视频右移渐变",
+      start,
+      duration,
+      props: {
+        src: videoSrc,
+        slideDistance: 35,
+        slideDuration: 20,
+        finalScale: 0.72,
+        scaleOrigin: "left",
+        bgColor: "#0a0a1a",
+        bgGradient: "",
+        gradientColor: "#0a0a1a",
+        gradientWidth: 18,
+        gradientOpacity: 1,
+        borderRadius: 16,
+        shadow: 0.5,
+        videoOpacity: 1,
+        objectFit: "cover",
+        volume: 1,
+        muted: 0,
+        startFrom: 0,
+        playbackRate: 1,
       },
     };
 

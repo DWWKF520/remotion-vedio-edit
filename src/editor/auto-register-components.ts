@@ -18,3 +18,4 @@ import "../components/LuosifenAnimation/manifest";
 import "../components/VideoClip/manifest";
 import "../components/ImageClip/manifest";
 import "../components/CircleShrinkTransition/manifest";
+import "../components/SlideRightTransition/manifest";

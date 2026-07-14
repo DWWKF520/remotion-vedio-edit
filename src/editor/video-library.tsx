@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useEditorStore } from "./store";
+import { useVideoEffects, EMPTY_EFFECTS } from "./video-effects";
+import type { VideoEffect } from "./video-effects";
 
 /**
  * 媒体库面板：
@@ -32,8 +34,9 @@ export const VideoLibrary: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const addVideoClip = useEditorStore((s) => s.addVideoClip);
   const addImageClip = useEditorStore((s) => s.addImageClip);
-  const addCircleShrinkClip = useEditorStore((s) => s.addCircleShrinkClip);
   const fps = useEditorStore((s) => s.fps);
+  // 视频特效统一配置（来自 video-effects.tsx，卡片与属性面板共用）
+  const videoEffects = useVideoEffects();
 
   const loadList = useCallback(async () => {
     try {
@@ -128,14 +131,6 @@ export const VideoLibrary: React.FC = () => {
     [addVideoClip, addImageClip, fps],
   );
 
-  const handleAddCircleShrink = useCallback(
-    (item: MediaItem) => {
-      if (item.type !== "video") return;
-      addCircleShrinkClip(item.url, item.name);
-    },
-    [addCircleShrinkClip],
-  );
-
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
@@ -165,8 +160,8 @@ export const VideoLibrary: React.FC = () => {
         />
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-2.5">
-        {/* 上传区域 */}
+      <div className="flex flex-1 flex-col gap-2 p-2.5 min-h-0">
+        {/* 上传区域：精简为单个图标 */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -175,7 +170,8 @@ export const VideoLibrary: React.FC = () => {
           onDragLeave={() => setIsDragging(false)}
           onDrop={onDrop}
           onClick={() => fileInputRef.current?.click()}
-          className={`group relative flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed py-6 transition-all ${
+          title={loading ? `上传中：${loading}` : `点击或拖拽${tab === "video" ? "视频" : "图片"}`}
+          className={`group relative flex cursor-pointer items-center justify-center rounded-xl border-2 border-dashed py-2 transition-all ${
             isDragging
               ? "border-[#007aff] bg-[#007aff]/8 dark:border-[#0a84ff] dark:bg-[#0a84ff]/10"
               : "border-[#007aff]/30 bg-[#007aff]/5 hover:border-[#007aff]/50 hover:bg-[#007aff]/8 dark:border-[#0a84ff]/30 dark:bg-[#0a84ff]/8 dark:hover:bg-[#0a84ff]/12"
@@ -194,73 +190,77 @@ export const VideoLibrary: React.FC = () => {
               }
             }}
           />
-          <div
-            className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform group-hover:scale-110 ${
-              isDragging ? "scale-110" : ""
-            }`}
-            style={{ background: "linear-gradient(135deg, #007aff33, #007aff14)" }}
-          >
-            {tab === "video" ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#007aff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="dark:stroke-[#4da2ff]"
-              >
-                <polygon points="23 7 16 12 23 17 23 7" />
-                <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+          {loading ? (
+            <div className="flex items-center gap-1.5 py-0.5 text-[10px] font-medium text-[#007aff] dark:text-[#4da2ff]">
+              <svg className="animate-spin" width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="3" opacity="0.25" />
+                <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
               </svg>
-            ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="#007aff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="dark:stroke-[#4da2ff]"
-              >
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-            )}
-          </div>
-          <div className="text-[11px] font-semibold text-[#007aff] dark:text-[#4da2ff]">
-            {loading ? `上传中：${loading}...` : `点击或拖拽${tab === "video" ? "视频" : "图片"}`}
-          </div>
-          <div className="text-[9px] text-[#8e8e93] dark:text-[#8e8e93]">
-            {tab === "video"
-              ? "支持 MP4 · WebM · MOV · MKV"
-              : "支持 JPG · PNG · GIF · WebP"}
-          </div>
+              <span>上传中…</span>
+            </div>
+          ) : (
+            <div
+              className={`flex h-7 w-7 items-center justify-center rounded-full transition-transform group-hover:scale-110 ${
+                isDragging ? "scale-110" : ""
+              }`}
+              style={{ background: "linear-gradient(135deg, #007aff33, #007aff14)" }}
+            >
+              {tab === "video" ? (
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#007aff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="dark:stroke-[#4da2ff]"
+                >
+                  <polygon points="23 7 16 12 23 17 23 7" />
+                  <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                </svg>
+              ) : (
+                <svg
+                  width="15"
+                  height="15"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#007aff"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="dark:stroke-[#4da2ff]"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* 媒体列表 */}
-        {filteredItems.length === 0 && !loading && (
-          <div className="py-7 text-center text-xs text-[#8e8e93] dark:text-[#8e8e93]">
-            暂无{tab === "video" ? "视频" : "图片"}
-            <br />
-            <span className="text-[10px]">点击上方按钮选择本地文件</span>
-          </div>
-        )}
+        {/* 媒体列表（独立纵向滚动，上传区固定不滚动） */}
+        <div className="vl-list-scroll flex-1 flex flex-col gap-2 overflow-y-auto min-h-0 pr-0.5">
+          {filteredItems.length === 0 && !loading && (
+            <div className="py-7 text-center text-xs text-[#8e8e93] dark:text-[#8e8e93]">
+              暂无{tab === "video" ? "视频" : "图片"}
+              <br />
+              <span className="text-[10px]">点击上方按钮选择本地文件</span>
+            </div>
+          )}
 
-        {filteredItems.map((item) => (
-          <MediaItemCard
-            key={item.url}
-            item={item}
-            onAdd={() => handleAddToTimeline(item)}
-            onAddCircle={item.type === "video" ? () => handleAddCircleShrink(item) : undefined}
-            onDelete={() => handleDelete(item.url, item.name)}
-          />
-        ))}
+          {filteredItems.map((item) => (
+            <MediaItemCard
+              key={item.url}
+              item={item}
+              effects={item.type === "video" ? videoEffects : EMPTY_EFFECTS}
+              onAdd={() => handleAddToTimeline(item)}
+              onDelete={() => handleDelete(item.url, item.name)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -289,11 +289,13 @@ const SubTabBtn: React.FC<{
 /** 单个媒体卡片 */
 const MediaItemCard: React.FC<{
   item: MediaItem;
+  /** 视频特效列表（仅视频卡片传入；图片传空数组） */
+  effects: VideoEffect[];
   onAdd: () => void;
-  onAddCircle?: () => void;
   onDelete: () => void;
-}> = ({ item, onAdd, onAddCircle, onDelete }) => {
+}> = ({ item, effects, onAdd, onDelete }) => {
   const [thumb, setThumb] = useState<string | null>(null);
+  const [effectOpen, setEffectOpen] = useState(false);
 
   // 生成缩略图
   useEffect(() => {
@@ -404,7 +406,7 @@ const MediaItemCard: React.FC<{
         </div>
       </div>
 
-      {/* 操作按钮 */}
+      {/* 右上角管理操作：仅 添加 / 删除 */}
       <div className="absolute right-1 top-1 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
         <button
           onClick={onAdd}
@@ -423,26 +425,6 @@ const MediaItemCard: React.FC<{
             <path d="M12 5v14M5 12h14" />
           </svg>
         </button>
-        {onAddCircle && (
-          <button
-            onClick={onAddCircle}
-            className="flex h-6 w-6 items-center justify-center rounded-full bg-[#007aff] text-white shadow-sm transition-transform hover:scale-110"
-            title="圆形收缩转场（加到Overlay轨道）"
-          >
-            <svg
-              width="12"
-              height="12"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="9" />
-            </svg>
-          </button>
-        )}
         <button
           onClick={onDelete}
           className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ff3b30] text-white shadow-sm transition-transform hover:scale-110"
@@ -461,6 +443,68 @@ const MediaItemCard: React.FC<{
           </svg>
         </button>
       </div>
+
+      {/* 底部特效下拉菜单（仅视频、且有特效时显示） */}
+      {effects.length > 0 && (
+        <div className="relative border-t border-[var(--separator)] px-2 py-1.5 dark:border-[var(--separator)]">
+          <button
+            onClick={() => setEffectOpen((v) => !v)}
+            className="flex w-full items-center justify-between gap-1 rounded-md border border-[var(--separator-opaque)] bg-[var(--surface-sunken)] px-2 py-1 text-[10px] font-medium text-[#1d1d1f] transition-colors hover:border-[#007aff]/40 hover:text-[#007aff] dark:bg-black/30 dark:text-[#f5f5f7] dark:hover:border-[#0a84ff]/40 dark:hover:text-[#4da2ff]"
+            title="应用视频特效"
+          >
+            <span className="flex items-center gap-1">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z" />
+              </svg>
+              视频特效
+            </span>
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className={`transition-transform ${effectOpen ? "rotate-180" : ""}`}
+            >
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          {effectOpen && (
+            <>
+              {/* 点击外部关闭 */}
+              <div
+                className="fixed inset-0 z-30"
+                onClick={() => setEffectOpen(false)}
+              />
+              <div className="absolute bottom-full left-2 right-2 z-40 mb-1 overflow-hidden rounded-lg border border-[var(--separator-opaque)] bg-[var(--surface-overlay)] shadow-lg dark:border-[var(--separator-opaque)] dark:bg-[#2c2c2e]">
+                {effects.map((e) => (
+                  <button
+                    key={e.key}
+                    onClick={() => {
+                      e.apply(item.url, item.name);
+                      setEffectOpen(false);
+                    }}
+                    title={e.title}
+                    className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-[10px] font-medium text-[#1d1d1f] transition-colors hover:bg-[var(--surface-sunken)] dark:text-[#f5f5f7] dark:hover:bg-black/30"
+                  >
+                    <span
+                      className="flex h-4 w-4 flex-shrink-0 items-center justify-center rounded text-white"
+                      style={{ background: e.color }}
+                    >
+                      {e.icon}
+                    </span>
+                    <span className="flex-1 truncate">{e.label}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
