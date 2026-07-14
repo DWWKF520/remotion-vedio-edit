@@ -7,7 +7,9 @@ export interface PropSchema {
   /** 标签（属性面板显示） */
   label: string;
   /** 输入类型 */
-  type: "text" | "color" | "number" | "textarea";
+  type: "text" | "color" | "number" | "textarea" | "select";
+  /** select 类型的可选项 */
+  options?: { label: string; value: string }[];
 }
 
 /** Remotion 组件 props 类型（统一为键值集合） */

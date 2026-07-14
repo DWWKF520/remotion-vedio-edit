@@ -149,6 +149,22 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
                           className={`${inputClass} flex-1`}
                         />
                       </div>
+                    ) : field.type === "select" ? (
+                      <select
+                        value={String(clip.props[field.name] ?? "")}
+                        onChange={(e) =>
+                          updateClipProps(clip.id, {
+                            [field.name]: e.target.value,
+                          })
+                        }
+                        className={`${selectClass} cursor-pointer`}
+                      >
+                        {field.options?.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                     ) : field.type === "number" ? (
                       <input
                         type="number"

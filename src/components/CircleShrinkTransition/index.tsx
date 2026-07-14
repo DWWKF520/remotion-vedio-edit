@@ -10,45 +10,53 @@ import {
 } from "remotion";
 
 /**
- * 圆形收缩转场 · Circle Shrink Transition
+ * 形状收缩转场 · Shape Shrink Transition
+ *
+ * 支持多种形状（圆形/正方形/长方形/圆角方形），视频被形状框住后缩小到目标位置。
  *
  * 两种内容模式：
- *   - "scale" 整体缩放：视频完整缩小后放进圆圈，飞向角落
- *   - "crop"  局部裁剪：圆形是取景窗，框住视频局部（比如人脸）后飞走
+ *   - "scale" 整体缩放：视频完整缩小后放进形状框
+ *   - "crop"  局部裁剪：形状是取景窗，框住视频局部
  */
 
 export const CircleShrinkTransition: React.FC<{
   /** 视频地址 */
   readonly src?: string;
-  /** 内容模式：scale=整体缩放进圆圈，crop=局部裁剪框住 */
+  /** 形状：circle=圆形，square=正方形，rect=长方形，rounded=圆角方形 */
+  readonly shape?: "circle" | "square" | "rect" | "rounded";
+  /** 长方形宽高比（width/height），仅 rect 模式生效 */
+  readonly rectAspect?: number;
+  /** 圆角半径（像素），仅 rounded 模式生效 */
+  readonly cornerRadius?: number;
+  /** 内容模式：scale=整体缩放进形状，crop=局部裁剪框住 */
   readonly contentMode?: "scale" | "crop";
-  /** 聚焦点 X（百分比 0-100）—— crop 模式下圆形收缩到哪里 */
+  /** 聚焦点 X（百分比 0-100）—— 已弃用，保留兼容 */
   readonly focusX?: number;
-  /** 聚焦点 Y（百分比 0-100） */
+  /** 聚焦点 Y（百分比 0-100）—— 已弃用，保留兼容 */
   readonly focusY?: number;
-  /** 收缩后圆形半径（像素） */
+  /** 收缩后半径（像素）—— 已弃用，保留兼容 */
   readonly focusRadius?: number;
   /** 最终位置 X（百分比 0-100） */
   readonly finalX?: number;
   /** 最终位置 Y（百分比 0-100） */
   readonly finalY?: number;
-  /** 最终圆形半径（像素） */
+  /** 最终半径/半边长（像素）—— 对 circle 是半径，对 square/rect 是半宽 */
   readonly finalRadius?: number;
   /** 收缩动画持续帧数 */
   readonly shrinkDuration?: number;
-  /** 移动动画延迟帧数（收缩完成后等多久开始飞） */
+  /** 已弃用 */
   readonly flyDelay?: number;
-  /** 移动动画持续帧数 */
+  /** 已弃用 */
   readonly flyDuration?: number;
-  /** 圆环边框宽度（像素），0 表示无边框 */
+  /** 边框宽度（像素），0 表示无边框 */
   readonly borderWidth?: number;
-  /** 圆环边框颜色 */
+  /** 边框颜色 */
   readonly borderColor?: string;
-  /** 圆环外发光强度 0-1 */
+  /** 外发光强度 0-1 */
   readonly glowIntensity?: number;
-  /** 背景是否变暗 0-1（突出圆形主体） */
+  /** 背景是否变暗 0-1 */
   readonly bgDim?: number;
-  /** 底层全屏视频是否显示 0-1（0=完全透明，只有圆圈有内容） */
+  /** 底层全屏视频是否显示 0-1 */
   readonly bgVideoOpacity?: number;
   /** 视频填充方式：cover=填满(可能裁剪)，contain=完整显示(可能留白) */
   readonly objectFit?: "cover" | "contain";
@@ -64,6 +72,9 @@ export const CircleShrinkTransition: React.FC<{
   readonly videoHeight?: number;
 }> = ({
   src = "",
+  shape = "circle",
+  rectAspect = 1.78,
+  cornerRadius = 24,
   contentMode = "scale",
   focusX = 20,
   focusY = 75,
@@ -91,9 +102,6 @@ export const CircleShrinkTransition: React.FC<{
   const width = vw || videoWidth;
   const height = vh || videoHeight;
 
-  // 阶段时间点：直接收缩到最终位置，不再有中间聚焦点和飞行阶段
-  const shrinkEnd = shrinkDuration;
-
   // 起始超大半径（能覆盖整个画面）
   const maxRadius = Math.sqrt(width * width + height * height) / 2 + 200;
 
@@ -104,7 +112,7 @@ export const CircleShrinkTransition: React.FC<{
     easing: Easing.out(Easing.cubic),
   });
 
-  // 计算当前圆心和半径：起始在画面中心，直接收缩到最终位置
+  // 计算当前中心位置：起始在画面中心，直接收缩到最终位置
   const startX = width / 2;
   const startY = height / 2;
   const endX = (finalX / 100) * width;
@@ -123,21 +131,42 @@ export const CircleShrinkTransition: React.FC<{
     extrapolateRight: "clamp",
   });
 
+  // 根据形状计算宽高和 borderRadius
+  // finalRadius 作为"半宽"基准：circle/square/rounded 时高=宽，rect 时按 rectAspect 拉伸
+  const shapeHalfW = shape === "rect" ? curRadius * rectAspect : curRadius;
+  const shapeHalfH = curRadius;
+  const shapeBorderRadius =
+    shape === "circle" ? "50%"
+    : shape === "rounded" ? `${cornerRadius}px`
+    : "0px";
+
+  // scale 模式：视频从画布尺寸开始，随形状等比例缩小
+  // 起始时视频 1:1 匹配底层全屏视频，结束时视频填满形状（cover 语义）
+  const finalShapeW = shape === "rect" ? finalRadius * rectAspect * 2 : finalRadius * 2;
+  const finalShapeH = finalRadius * 2;
+  const videoRatio = width / height;
+  const finalShapeRatio = finalShapeW / finalShapeH;
+  const finalScale =
+    videoRatio > finalShapeRatio ? finalShapeH / height : finalShapeW / width;
+  const videoScale = interpolate(shrinkProgress, [0, 1], [1, finalScale], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
   // 背景变暗进度
   const dimProgress = interpolate(frame, [2, shrinkDuration + 4], [0, bgDim], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  // 飞行阶段已移除：现在直接收缩到最终位置，不再经过中间聚焦点
-  // 保留 flyDelay / flyDuration / focusX / focusY / focusRadius 参数以兼容旧数据，但不再使用
+  // 已弃用参数，保留兼容
   void flyDelay;
   void flyDuration;
   void focusX;
   void focusY;
   void focusRadius;
 
-  // 圆环弹性出现
+  // 边框弹性出现
   const ringSpring = spring({
     frame: frame - 2,
     fps: 30,
@@ -176,15 +205,15 @@ export const CircleShrinkTransition: React.FC<{
         />
       </div>
 
-      {/* 上层圆形高亮视频 */}
+      {/* 上层形状高亮视频 */}
       <div
         style={{
           position: "absolute",
-          left: curX - curRadius,
-          top: curY - curRadius,
-          width: curRadius * 2,
-          height: curRadius * 2,
-          borderRadius: "50%",
+          left: curX - shapeHalfW,
+          top: curY - shapeHalfH,
+          width: shapeHalfW * 2,
+          height: shapeHalfH * 2,
+          borderRadius: shapeBorderRadius,
           overflow: "hidden",
           boxShadow:
             glowIntensity > 0
@@ -195,14 +224,16 @@ export const CircleShrinkTransition: React.FC<{
         }}
       >
         {contentMode === "scale" ? (
-          // 缩放模式：视频跟着圆形一起等比缩小
+          // 缩放模式：视频从画布尺寸开始，随形状等比例缩小
           <div
             style={{
               position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              left: "50%",
+              top: "50%",
+              width,
+              height,
+              transform: `translate(-50%, -50%) scale(${videoScale})`,
+              transformOrigin: "center center",
             }}
           >
             <OffthreadVideo
@@ -218,14 +249,14 @@ export const CircleShrinkTransition: React.FC<{
             />
           </div>
         ) : (
-          // 裁剪模式：视频尺寸=画布尺寸，通过偏移让聚焦点对齐圆心
+          // 裁剪模式：视频尺寸=画布尺寸，通过偏移让聚焦点对齐形状中心
           <div
             style={{
               position: "absolute",
               width,
               height,
-              left: -(curX - curRadius),
-              top: -(curY - curRadius),
+              left: -(curX - shapeHalfW),
+              top: -(curY - shapeHalfH),
             }}
           >
             <OffthreadVideo
@@ -238,13 +269,13 @@ export const CircleShrinkTransition: React.FC<{
           </div>
         )}
 
-        {/* 白色圆环边框 */}
+        {/* 形状边框 */}
         {borderWidth > 0 && (
           <div
             style={{
               position: "absolute",
               inset: 0,
-              borderRadius: "50%",
+              borderRadius: shapeBorderRadius,
               border: `${borderWidth}px solid ${borderColor}`,
               boxShadow: `inset 0 0 ${borderWidth * 2}px rgba(255,255,255,0.2)`,
               transform: `scale(${ringScale})`,

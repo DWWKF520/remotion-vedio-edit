@@ -193,6 +193,17 @@ const CircleHandleOverlay: React.FC<{
   const finalX = (Number(clipProps.finalX) ?? 12) / 100;
   const finalY = (Number(clipProps.finalY) ?? 82) / 100;
   const finalRadius = Number(clipProps.finalRadius) ?? 100;
+  const shape = String(clipProps.shape ?? "circle") as "circle" | "square" | "rect" | "rounded";
+  const rectAspect = Number(clipProps.rectAspect ?? 1.78);
+  const cornerRadius = Number(clipProps.cornerRadius ?? 24);
+
+  // 根据形状计算控制框宽高和圆角
+  const shapeHalfW = shape === "rect" ? finalRadius * rectAspect : finalRadius;
+  const shapeHalfH = finalRadius;
+  const shapeBorderRadius =
+    shape === "circle" ? "50%"
+    : shape === "rounded" ? `${cornerRadius}px`
+    : "0px";
 
   // 把画布坐标换算成容器像素坐标
   const getScale = useCallback(() => {
@@ -279,21 +290,21 @@ const CircleHandleOverlay: React.FC<{
   const scale = getScale();
   const cx = finalX * 100;
   const cy = finalY * 100;
-  const r = (finalRadius / canvasWidth) * 100; // 用百分比宽度表示半径
 
   return (
     <div
       className="pointer-events-none absolute inset-0"
       style={{ userSelect: "none" }}
     >
-      {/* 圆形控制框 */}
+      {/* 形状控制框 */}
       <div
-        className="pointer-events-auto absolute rounded-full border-2 border-dashed border-[#007aff] cursor-move"
+        className="pointer-events-auto absolute border-2 border-dashed border-[#007aff] cursor-move"
         style={{
-          left: `calc(${cx}% - ${finalRadius * scale}px)`,
-          top: `calc(${cy}% - ${finalRadius * scale}px)`,
-          width: finalRadius * 2 * scale,
-          height: finalRadius * 2 * scale,
+          left: `calc(${cx}% - ${shapeHalfW * scale}px)`,
+          top: `calc(${cy}% - ${shapeHalfH * scale}px)`,
+          width: shapeHalfW * 2 * scale,
+          height: shapeHalfH * 2 * scale,
+          borderRadius: shapeBorderRadius,
           boxShadow: "0 0 0 1px rgba(0,122,255,0.3)",
         }}
         onMouseDown={handleMoveStart}
@@ -314,11 +325,11 @@ const CircleHandleOverlay: React.FC<{
       <div
         className="pointer-events-none absolute rounded bg-[#007aff] px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm"
         style={{
-          left: `calc(${cx}% - ${finalRadius * scale}px)`,
-          top: `calc(${cy}% - ${finalRadius * scale}px - 22px)`,
+          left: `calc(${cx}% - ${shapeHalfW * scale}px)`,
+          top: `calc(${cy}% - ${shapeHalfH * scale}px - 22px)`,
         }}
       >
-        {Math.round(finalX)}%, {Math.round(finalY)}% · r={Math.round(finalRadius)}
+        {shape} · {Math.round(finalX)}%, {Math.round(finalY)}% · r={Math.round(finalRadius)}
       </div>
     </div>
   );
