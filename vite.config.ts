@@ -61,7 +61,6 @@ function probeVideo(filePath: string): Promise<{
   height: number;
 }> {
   return new Promise((resolve, reject) => {
-    const { spawn } = require("node:child_process");
     const proc = spawn(FFMPEG_PATH, ["-i", filePath]);
     let stderr = "";
     proc.stderr.on("data", (d: Buffer) => (stderr += d.toString()));
@@ -132,17 +131,6 @@ let bundlePromise: Promise<string> | null = null;
 async function getBundle(): Promise<string> {
   if (!bundlePromise) {
     const publicDir = path.resolve(__dirname, "public");
-    console.log(`[bundle] entryPoint=${path.resolve(__dirname, "src/index.ts")}`);
-    console.log(`[bundle] publicDir=${publicDir}, exists=${fs.existsSync(publicDir)}`);
-    if (fs.existsSync(publicDir)) {
-      const uploadsDir = path.join(publicDir, "uploads");
-      if (fs.existsSync(uploadsDir)) {
-        const files = fs.readdirSync(uploadsDir);
-        console.log(`[bundle] uploads/ has ${files.length} files: ${files.slice(0, 10).join(", ")}`);
-      } else {
-        console.log(`[bundle] WARNING: uploads/ dir not found at ${uploadsDir}`);
-      }
-    }
     // 固定 bundle 输出到 E 盘，避免使用 C 盘临时目录
     const bundleOutputDir = path.resolve(__dirname, ".tmp/remotion-bundle");
     bundlePromise = bundle({
@@ -152,7 +140,6 @@ async function getBundle(): Promise<string> {
       outputDir: bundleOutputDir,
       onProgress: () => {},
     }).then((serveUrl) => {
-      console.log(`[bundle] done, serveUrl=${serveUrl}`);
       // 手动复制 uploads/ 到 serve 目录，同时将中文文件名重命名为纯 ASCII
       // 避免 Remotion 内部 HTTP 服务器无法正确处理 URL 编码的中文路径
       const srcUploads = path.join(publicDir, "uploads");
@@ -165,7 +152,7 @@ async function getBundle(): Promise<string> {
           const srcFile = path.join(srcUploads, file);
           if (!fs.statSync(srcFile).isFile()) continue;
           let dstName = file;
-          if (/[^\x00-\x7F]/.test(file)) {
+          if (/[^\x00-\x7F]/.test(file)) { // eslint-disable-line no-control-regex
             const ext = path.extname(file);
             const hash = Buffer.from(file, "utf-8").toString("base64url").slice(0, 24);
             dstName = `m_${hash}${ext}`;
@@ -174,13 +161,6 @@ async function getBundle(): Promise<string> {
           const dstFile = path.join(dstUploads, dstName);
           fs.copyFileSync(srcFile, dstFile);
         }
-        const files = fs.readdirSync(dstUploads);
-        console.log(`[bundle] serve dir uploads/ has ${files.length} files: ${files.slice(0, 10).join(", ")}`);
-        if (Object.keys(mediaFileNameMap).length > 0) {
-          console.log(`[bundle] filename map: ${JSON.stringify(mediaFileNameMap)}`);
-        }
-      } else {
-        console.log(`[bundle] WARNING: source uploads/ not found at ${srcUploads}`);
       }
       return serveUrl;
     });
@@ -443,7 +423,7 @@ export default defineConfig({
             const ts = Date.now().toString().slice(-8);
             const baseName = path.basename(fileName, ext);
             const cleanBase = baseName
-              .replace(/[\\/:*?"<>|\x00-\x1F]/g, "_")
+              .replace(/[\\/:*?"<>|\x00-\x1F]/g, "_") // eslint-disable-line no-control-regex
               .trim()
               .slice(0, 40);
             const safeName = `${ts}_${cleanBase || "media"}${ext}`;
@@ -586,7 +566,8 @@ export default defineConfig({
               height?: number;
             };
 
-            const jobId = Math.random().toString(36).slice(2, 10);
+            // 这里是 dev server 端 API 调用，不在 Remotion 渲染上下文中，无需确定性
+            const jobId = Math.random().toString(36).slice(2, 10); // eslint-disable-line @remotion/deterministic-randomness
             jobs.set(jobId, { progress: 0, done: false });
             res.writeHead(200, { "Content-Type": "application/json" });
             res.end(JSON.stringify({ jobId }));
@@ -595,47 +576,11 @@ export default defineConfig({
             try {
               // 确保 Remotion Chrome 已安装
               await ensureBrowser();
-              console.log(`[export:${jobId}] browser ensured`);
 
               const serveUrl = await getBundle();
 
               // 将中文文件名替换为 ASCII 文件名（避免渲染时 HTTP 404）
               const renderPayload = applyFileNameMap(payload);
-
-              // 日志：打印 clips 信息
-              const clipsObj = renderPayload.clips as Record<string, { componentKey: string; props: Record<string, unknown>; start: number; duration: number }>;
-              const tracksArr = renderPayload.tracks as Array<{ id: string; kind: string; clipIds: string[] }>;
-              console.log(`[export:${jobId}] serveUrl=${serveUrl}`);
-              console.log(`[export:${jobId}] tracks=${JSON.stringify(tracksArr?.map(t => ({ id: t.id, kind: t.kind, clips: t.clipIds })) || [])}`);
-              for (const [cid, clip] of Object.entries(clipsObj || {})) {
-                console.log(`[export:${jobId}] clip ${cid}: key=${clip.componentKey}, start=${clip.start}, dur=${clip.duration}, src=${clip.props?.src}, startFrom=${clip.props?.startFrom}`);
-              }
-
-              // 验证视频文件是否可被 ffmpeg 读取
-              for (const [cid, clip] of Object.entries(clipsObj || {})) {
-                const clipSrc = clip.props?.src as string;
-                if (clipSrc && clip.componentKey === "videoClip") {
-                  const localPath = path.join(serveUrl, clipSrc.replace(/^\//, ""));
-                  console.log(`[export:${jobId}] verifying video: ${localPath}, exists=${fs.existsSync(localPath)}`);
-                  if (fs.existsSync(localPath)) {
-                    const stat = fs.statSync(localPath);
-                    console.log(`[export:${jobId}] video size: ${stat.size} bytes`);
-                    // 用 ffmpeg 检查视频信息
-                    await new Promise<void>((resolve) => {
-                      const proc = spawn(FFMPEG_PATH, ["-i", localPath]);
-                      let stderr = "";
-                      proc.stderr.on("data", (d) => { stderr += d.toString(); });
-                      proc.on("close", () => {
-                        const durMatch = stderr.match(/Duration: (\d+):(\d+):([\d.]+)/);
-                        const vidMatch = stderr.match(/Stream.*Video.*?(\d+)x(\d+)/);
-                        console.log(`[export:${jobId}] ffmpeg probe: duration=${durMatch ? durMatch[0] : "N/A"}, video=${vidMatch ? vidMatch[0] : "N/A"}`);
-                        resolve();
-                      });
-                    });
-                  }
-                }
-              }
-              console.log(`[export:${jobId}] totalDuration=${renderPayload.totalDuration}, fps=${renderPayload.fps}, ${renderPayload.width}x${renderPayload.height}`);
 
               const composition = await selectComposition({
                 serveUrl,
@@ -645,7 +590,6 @@ export default defineConfig({
                   clips: renderPayload.clips,
                 },
               });
-              console.log(`[export:${jobId}] composition: id=${composition.id}, durationInFrames=${composition.durationInFrames}, fps=${composition.fps}, ${composition.width}x${composition.height}`);
 
               // 覆盖时长（Composition 默认 600，按实际 totalDuration）
               const total = Math.max(
@@ -660,7 +604,6 @@ export default defineConfig({
               const outDir = ensureExportDir();
               const outputPath = path.join(outDir, `${jobId}.mp4`);
 
-              console.log(`[export:${jobId}] starting renderMedia → ${outputPath}`);
               await renderMedia({
                 composition,
                 serveUrl,
@@ -672,14 +615,15 @@ export default defineConfig({
                   clips: renderPayload.clips,
                 },
                 onBrowserLog: (log) => {
-                  console.log(`[export:${jobId}][browser] ${log.type}: ${log.text}`);
+                  if (log.type === "error") {
+                    console.warn(`[export:${jobId}][browser] ${log.type}: ${log.text}`);
+                  }
                 },
                 onProgress: ({ progress }) => {
                   const job = jobs.get(jobId);
                   if (job) job.progress = progress;
                 },
               });
-              console.log(`[export:${jobId}] renderMedia done, file exists=${fs.existsSync(outputPath)}, size=${fs.existsSync(outputPath) ? fs.statSync(outputPath).size : 0} bytes`);
 
               // 尝试将字幕嵌入 MP4
               const fps = payload.fps || 30;
@@ -689,7 +633,7 @@ export default defineConfig({
                 fps,
               );
 
-              let finalUrl = `/exports/${jobId}.mp4`;
+              const finalUrl = `/exports/${jobId}.mp4`;
 
               if (srtContent) {
                 try {
@@ -702,7 +646,6 @@ export default defineConfig({
                   fs.renameSync(muxedPath, outputPath);
                   // 清理 SRT
                   fs.unlinkSync(srtPath);
-                  console.log(`[export] subtitles muxed into ${jobId}.mp4`);
                 } catch (muxErr) {
                   // ffmpeg 不可用或嵌入失败，降级为无字幕 MP4
                   console.warn("[export] subtitle mux failed, serving MP4 without subtitles:", muxErr instanceof Error ? muxErr.message : muxErr);

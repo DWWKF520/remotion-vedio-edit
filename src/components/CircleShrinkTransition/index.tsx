@@ -167,17 +167,6 @@ export const CircleShrinkTransition: React.FC<{
   });
   const ringScale = 0.8 + 0.2 * Math.min(1, ringSpring);
 
-  const safeSrc = React.useMemo(() => {
-    if (!src) return src;
-    if (/^(https?:|data:|blob:)/i.test(src)) return src;
-    const [p, query] = src.split("?");
-    const encodedPath = p
-      .split("/")
-      .map((seg) => encodeURI(seg))
-      .join("/");
-    return query ? `${encodedPath}?${query}` : encodedPath;
-  }, [src]);
-
   if (!src) {
     return (
       <AbsoluteFill style={{ background: "#111" }}>
@@ -194,7 +183,7 @@ export const CircleShrinkTransition: React.FC<{
       <div style={{ position: "absolute", inset: 0, opacity: bgVideoOpacity }}>
         <OffthreadVideo
           startFrom={Math.floor(startFrom * 30)}
-          src={safeSrc}
+          src={src}
           style={{ width: "100%", height: "100%", objectFit: "cover" }}
           volume={muted ? 0 : volume}
           muted={muted > 0}
@@ -240,7 +229,7 @@ export const CircleShrinkTransition: React.FC<{
           >
             <OffthreadVideo
               startFrom={Math.floor(startFrom * 30)}
-              src={safeSrc}
+              src={src}
               style={{
                 width: "100%",
                 height: "100%",
@@ -263,7 +252,7 @@ export const CircleShrinkTransition: React.FC<{
           >
             <OffthreadVideo
               startFrom={Math.floor(startFrom * 30)}
-              src={safeSrc}
+              src={src}
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               volume={0}
               muted

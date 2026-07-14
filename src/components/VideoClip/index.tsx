@@ -10,19 +10,21 @@ import {
  * 视频片段组件 —— 把任意 .mp4/.webm 等包装成可在时间线上拖入的素材
  *
  * 设计目标：
- * - 与 SpeakingPerson 一致处理中文文件名：用 encodeURI 包裹 src
  * - 默认指向 /uploads/智谱清言.mp4
  * - 通过 scale/position/fit 控制画面在画布中的呈现
  * - 通过 startFrom（秒）/playbackRate 控制时间偏移和速率
  * - 整段时长由 manifest.defaultDuration 决定（默认 154 帧 ≈ 5.13s 对应原视频）
- * - loop=1 时末尾循环回放，便于让视频源比动画组件短时不黑屏
+ *
+ * ⚠️ 中文文件名由导出 API 在渲染前自动重命名为 ASCII（base64url 哈希），
+ *    渲染时 src 形如 /uploads/m_xxx.mp4，OffthreadVideo 通过 serve URL 解析。
+ *    编辑器内直接播放则使用浏览器原生 URL 处理能力。
  *
  * ⚠️ Remotion 渲染时视频文件必须放到 public/ 下（运行时通过 URL 访问）。
  *    当前项目 public/uploads/ 下的视频可直接通过 /uploads/xxx 引用。
  */
 
 export const VideoClip: React.FC<{
-  /** 视频 URL（相对 /uploads/... 或绝对 URL），中文路径会做 encodeURI */
+  /** 视频 URL（相对 /uploads/... 或绝对 URL） */
   readonly src?: string;
   /** 音量 0-1 */
   readonly volume?: number;
@@ -46,10 +48,6 @@ export const VideoClip: React.FC<{
   readonly borderRadius?: number;
   /** 是否显示投影 1/0 */
   readonly showShadow?: number;
-  /** 视频宽度（兜底） */
-  readonly videoWidth?: number;
-  /** 视频高度（兜底） */
-  readonly videoHeight?: number;
 }> = ({
   src = "/uploads/智谱清言.mp4",
   volume = 1,
@@ -63,23 +61,10 @@ export const VideoClip: React.FC<{
   scale = 1,
   borderRadius = 0,
   showShadow = 1,
-  videoWidth = 1920,
-  videoHeight = 1080,
 }) => {
   const vcfg = useVideoConfig();
 
-  // 编码 URL（处理中文/空格文件名）
-  const safeSrc = React.useMemo(() => {
-    if (/^(https?:|data:|blob:)/i.test(src)) return src;
-    const [path, query] = src.split("?");
-    const encodedPath = path
-      .split("/")
-      .map((seg) => encodeURI(seg))
-      .join("/");
-    return query ? `${encodedPath}?${query}` : encodedPath;
-  }, [src]);
-
-  // startFrom 是秒，转成帧交给 <Video>
+  // startFrom 是秒，转成帧交给 <OffthreadVideo>
   const startFromFrames = Math.max(
     0,
     Math.floor(startFrom * (vcfg.fps || 30)),
