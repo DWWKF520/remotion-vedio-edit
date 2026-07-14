@@ -91,73 +91,51 @@ export const CircleShrinkTransition: React.FC<{
   const width = vw || videoWidth;
   const height = vh || videoHeight;
 
-  // 阶段时间点
+  // 阶段时间点：直接收缩到最终位置，不再有中间聚焦点和飞行阶段
   const shrinkEnd = shrinkDuration;
-  const flyStart = shrinkEnd + flyDelay;
-  const flyEnd = flyStart + flyDuration;
 
   // 起始超大半径（能覆盖整个画面）
   const maxRadius = Math.sqrt(width * width + height * height) / 2 + 200;
 
-  // 收缩阶段进度
+  // 收缩阶段进度：从画面中心直接收缩到最终位置
   const shrinkProgress = interpolate(frame, [0, shrinkDuration], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing: Easing.out(Easing.cubic),
   });
 
-  // 飞行阶段进度
-  const flyProgress = interpolate(frame, [flyStart, flyEnd], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.inOut(Easing.cubic),
-  });
-
-  // 计算当前圆心和半径
-  // scale 模式：起始在画面中心；crop 模式：也是中心，但内部视频偏移逻辑不同
+  // 计算当前圆心和半径：起始在画面中心，直接收缩到最终位置
   const startX = width / 2;
   const startY = height / 2;
-  const endX1 = (focusX / 100) * width;
-  const endY1 = (focusY / 100) * height;
-  const endX2 = (finalX / 100) * width;
-  const endY2 = (finalY / 100) * height;
+  const endX = (finalX / 100) * width;
+  const endY = (finalY / 100) * height;
 
-  const shrinkX = interpolate(shrinkProgress, [0, 1], [startX, endX1], {
+  const curX = interpolate(shrinkProgress, [0, 1], [startX, endX], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const shrinkY = interpolate(shrinkProgress, [0, 1], [startY, endY1], {
+  const curY = interpolate(shrinkProgress, [0, 1], [startY, endY], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const shrinkR = interpolate(shrinkProgress, [0, 1], [maxRadius, focusRadius], {
+  const curRadius = interpolate(shrinkProgress, [0, 1], [maxRadius, finalRadius], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-
-  const flyX = interpolate(flyProgress, [0, 1], [endX1, endX2], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const flyY = interpolate(flyProgress, [0, 1], [endY1, endY2], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const flyR = interpolate(flyProgress, [0, 1], [focusRadius, finalRadius], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const inShrink = frame < shrinkEnd;
-  const curX = inShrink ? shrinkX : flyX;
-  const curY = inShrink ? shrinkY : flyY;
-  const curRadius = inShrink ? shrinkR : flyR;
 
   // 背景变暗进度
   const dimProgress = interpolate(frame, [2, shrinkDuration + 4], [0, bgDim], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
+
+  // 飞行阶段已移除：现在直接收缩到最终位置，不再经过中间聚焦点
+  // 保留 flyDelay / flyDuration / focusX / focusY / focusRadius 参数以兼容旧数据，但不再使用
+  void flyDelay;
+  void flyDuration;
+  void focusX;
+  void focusY;
+  void focusRadius;
 
   // 圆环弹性出现
   const ringSpring = spring({

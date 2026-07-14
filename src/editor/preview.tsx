@@ -250,10 +250,15 @@ const CircleHandleOverlay: React.FC<{
         const newY = Math.max(0, Math.min(100, ((start.origY + dy) / canvasHeight) * 100));
         onUpdate({ finalX: Math.round(newX * 10) / 10, finalY: Math.round(newY * 10) / 10 });
       } else if (dragging === "resize") {
-        // 从圆心到鼠标的距离变化 => 半径变化
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        const sign = dx + dy > 0 ? 1 : -1;
-        const newR = Math.max(20, Math.min(Math.max(canvasWidth, canvasHeight), start.origRadius + sign * dist));
+        // 直接用鼠标到圆心的距离作为新半径，更直观
+        const centerX = start.origX;
+        const centerY = start.origY;
+        const mouseCanvasX = centerX + dx;
+        const mouseCanvasY = centerY + dy;
+        const dist = Math.sqrt(
+          (mouseCanvasX - centerX) ** 2 + (mouseCanvasY - centerY) ** 2
+        );
+        const newR = Math.max(20, Math.min(Math.max(canvasWidth, canvasHeight) / 2, dist));
         onUpdate({ finalRadius: Math.round(newR) });
       }
     };
