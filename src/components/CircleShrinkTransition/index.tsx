@@ -89,7 +89,7 @@ export const CircleShrinkTransition: React.FC<{
   borderColor = "#ffffff",
   glowIntensity = 0.8,
   bgDim = 0.4,
-  bgVideoOpacity = 1,
+  bgVideoOpacity = 0,
   objectFit = "cover",
   volume = 1,
   muted = 0,
