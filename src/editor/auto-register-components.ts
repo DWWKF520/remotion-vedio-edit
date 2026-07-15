@@ -4,18 +4,18 @@
 // Remotion/bundler 端：import.meta.glob 不可用，由本文件显式导入保证 manifest 全部被加载。
 //
 // 新增组件时，在下方追加一行 import。
-import "../components/HelloWorld/manifest";
-import "../components/SubtitleClip/manifest";
-import "../components/SubtitleTrack/manifest";
-import "../components/ClaudeType/manifest";
-import "../components/Wechat2DRender/manifest";
-import "../components/RulerProgressRender/manifest";
-import "../components/LightSpotlight/manifest";
-import "../components/SalaryCompare/manifest";
-import "../components/SpeakingPerson/manifest";
-import "../components/ReportHighlight/manifest";
-import "../components/LuosifenAnimation/manifest";
-import "../components/VideoClip/manifest";
-import "../components/ImageClip/manifest";
-import "../components/CircleShrinkTransition/manifest";
-import "../components/SlideRightTransition/manifest";
+import "../components/ui/HelloWorld/manifest";
+import "../components/clips/SubtitleClip/manifest";
+import "../components/clips/SubtitleTrack/manifest";
+import "../components/ui/ClaudeType/manifest";
+import "../components/ui/Wechat2DRender/manifest";
+import "../components/ui/RulerProgressRender/manifest";
+import "../components/ui/LightSpotlight/manifest";
+import "../components/ui/SalaryCompare/manifest";
+import "../components/ui/SpeakingPerson/manifest";
+import "../components/ui/ReportHighlight/manifest";
+import "../components/ui/LuosifenAnimation/manifest";
+import "../components/clips/VideoClip/manifest";
+import "../components/clips/ImageClip/manifest";
+import "../components/video-effects/CircleShrinkTransition/manifest";
+import "../components/video-effects/SlideRightTransition/manifest";

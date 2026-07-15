@@ -6,7 +6,7 @@ import { PropertiesPanel } from "./properties";
 import { computeMaxEnd, useEditorStore } from "./store";
 import { useExportStore } from "./export-store";
 import { getComponentDef } from "./registry";
-import { parseSubtitlesText } from "../components/SubtitleTrack";
+import { parseSubtitlesText } from "../components/clips/SubtitleTrack";
 import { useThemeStore } from "./theme-store";
 
 /**

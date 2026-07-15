@@ -4,8 +4,8 @@ import { getComponentDef } from "./registry";
 import { useVideoEffects } from "./video-effects";
 import { EFFECT_LIST } from "./types";
 import type { ClipEffect, EffectType } from "./types";
-import { EFFECT_META_LIST, getEffectMeta } from "../components/VideoEffectStack/registry";
-import type { VideoEffectItem, EffectType as StackEffectType } from "../components/VideoEffectStack/types";
+import { EFFECT_META_LIST, getEffectMeta } from "../components/video-effects/VideoEffectStack/registry";
+import type { VideoEffectItem, EffectType as StackEffectType } from "../components/video-effects/VideoEffectStack/types";
 import { nanoid } from "./nanoid";
 
 /** 属性面板：编辑选中 clip 的 props，支持收起为窄条 */
