@@ -35,7 +35,7 @@ export function computeMaxEnd(
 /**
  * 预览时间线长度：至少 DEFAULT_TOTAL，否则跟随 clip 最大结束时间。
  */
-function recomputePreviewDuration(
+export function recomputePreviewDuration(
   tracks: Track[],
   clips: Record<string, Clip>,
 ): number {

@@ -308,6 +308,14 @@ html.theme-transitioning *::after {
     color: var(--text-primary);
   }
 
+  /* macOS Dock 放大效果图标 — transform 由 GSAP quickTo 驱动，CSS 不参与 transform 过渡 */
+  .dock-item {
+    transform-origin: bottom center;
+    will-change: transform;
+    transition: background-color 0.15s cubic-bezier(0.32, 0.72, 0, 1),
+                color 0.15s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
   /* 轨道头图标按钮 */
   .track-icon-btn {
     background: transparent;

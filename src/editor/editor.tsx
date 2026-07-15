@@ -9,6 +9,7 @@ import { getComponentDef } from "./registry";
 import { parseSubtitlesText } from "../components/clips/SubtitleTrack";
 import { useThemeStore } from "./theme-store";
 import { gsap, useGSAP } from "./gsap-setup";
+import { useHistoryStore, initHistory } from "./history-store";
 
 /**
  * 编辑器主布局（剪映 PC 风格）：
@@ -44,6 +45,15 @@ export const EditorApp: React.FC = () => {
   const rightCollapsed = useThemeStore((s) => s.rightCollapsed);
   const toggleLeft = useThemeStore((s) => s.toggleLeft);
   const toggleRight = useThemeStore((s) => s.toggleRight);
+
+  // Undo / Redo（键盘快捷键用；按钮位于时间线播放控件区）
+  const undo = useHistoryStore((s) => s.undo);
+  const redo = useHistoryStore((s) => s.redo);
+
+  // 初始化历史监听（幂等）
+  useEffect(() => {
+    initHistory();
+  }, []);
 
   // 导出 SRT 字幕文件
   const exportSRT = () => {
@@ -119,6 +129,17 @@ export const EditorApp: React.FC = () => {
       )
         return;
 
+      // Undo / Redo（Ctrl/Cmd+Z 撤销，Ctrl/Cmd+Shift+Z 或 Ctrl/Cmd+Y 重做）
+      const mod = e.ctrlKey || e.metaKey;
+      if (mod && (e.key === "z" || e.key === "Z" || e.key === "y" || e.key === "Y")) {
+        const isRedo =
+          e.key === "y" || e.key === "Y" || (e.shiftKey && (e.key === "z" || e.key === "Z"));
+        e.preventDefault();
+        if (isRedo) redo();
+        else undo();
+        return;
+      }
+
       if (e.key === " ") {
         e.preventDefault();
         togglePlay();
@@ -190,6 +211,8 @@ export const EditorApp: React.FC = () => {
     trimClipEnd,
     togglePlay,
     setCurrentFrame,
+    undo,
+    redo,
   ]);
 
   const startExport = async () => {

@@ -2,10 +2,15 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import type { Clip } from "./types";
+import { useHistoryStore } from "./history-store";
+import { gsap, useGSAP } from "./gsap-setup";
 
 const TRACK_HEAD_WIDTH = 140;
 const TRACK_HEIGHT = 48;
 const RULER_HEIGHT = 24;
+
+/** macOS Dock 放大效果的 quickTo setter */
+type DockSetter = { scale: (v: number) => void; y: (v: number) => void };
 
 function frameToX(frame: number, pxPerFrame: number): number {
   return frame * pxPerFrame;
@@ -57,6 +62,20 @@ const IconFrameBack: React.FC<{ size?: number }> = ({ size = 16 }) => (
 const IconFrameForward: React.FC<{ size?: number }> = ({ size = 16 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
     <path d="M5.5 18l8.5-6-8.5-6v12zM16 6v12h2V6h-2z" />
+  </svg>
+);
+
+const IconUndo: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="1 4 1 10 7 10" />
+    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+  </svg>
+);
+
+const IconRedo: React.FC<{ size?: number }> = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
   </svg>
 );
 
@@ -425,6 +444,64 @@ export const Timeline: React.FC = () => {
   const setCurrentFrame = useEditorStore((s) => s.setCurrentFrame);
   const togglePlay = useEditorStore((s) => s.togglePlay);
 
+  // Undo / Redo
+  const canUndo = useHistoryStore((s) => s.canUndo);
+  const canRedo = useHistoryStore((s) => s.canRedo);
+  const undo = useHistoryStore((s) => s.undo);
+  const redo = useHistoryStore((s) => s.redo);
+
+  // ===== macOS Dock 放大效果 =====
+  const dockRef = useRef<HTMLDivElement>(null);
+  const dockItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const dockSetters = useRef<Array<DockSetter | null>>([]);
+
+  useGSAP(
+    () => {
+      dockSetters.current = dockItemRefs.current.map((el) => {
+        if (!el) return null;
+        return {
+          scale: gsap.quickTo(el, "scale", { duration: 0.4, ease: "power3.out" }),
+          y: gsap.quickTo(el, "y", { duration: 0.4, ease: "power3.out" }),
+        };
+      });
+    },
+    { scope: dockRef },
+  );
+
+  const handleDockMove = useCallback((e: React.MouseEvent) => {
+    const mouseX = e.clientX;
+    dockItemRefs.current.forEach((el, i) => {
+      const setter = dockSetters.current[i];
+      if (!el || !setter) return;
+      // 禁用按钮不参与放大
+      if (el.disabled) {
+        setter.scale(1);
+        setter.y(0);
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      const center = rect.left + rect.width / 2;
+      const distance = Math.abs(mouseX - center);
+      const maxDistance = 90;
+      if (distance < maxDistance) {
+        const factor = 1 - distance / maxDistance;
+        setter.scale(1 + factor * 0.5);
+        setter.y(-factor * 8);
+      } else {
+        setter.scale(1);
+        setter.y(0);
+      }
+    });
+  }, []);
+
+  const handleDockLeave = useCallback(() => {
+    dockSetters.current.forEach((setter) => {
+      if (!setter) return;
+      setter.scale(1);
+      setter.y(0);
+    });
+  }, []);
+
   const scrollRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{
     clipId: string;
@@ -646,26 +723,34 @@ export const Timeline: React.FC = () => {
 
         <span className="flex-1" />
 
-        {/* 中间：播放控件 */}
-        <div className="flex items-center gap-0.5">
+        {/* 中间：播放控件 + Undo/Redo（macOS Dock 放大效果） */}
+        <div
+          ref={dockRef}
+          className="flex items-center gap-0.5"
+          onMouseMove={handleDockMove}
+          onMouseLeave={handleDockLeave}
+        >
           <button
+            ref={(el) => { dockItemRefs.current[0] = el; }}
             onClick={() => setCurrentFrame(0)}
             title="回到开头 (Home)"
-            className="play-btn"
+            className="play-btn dock-item"
           >
             <IconSkipBack size={14} />
           </button>
           <button
+            ref={(el) => { dockItemRefs.current[1] = el; }}
             onClick={() => setCurrentFrame(currentFrame - 1)}
             title="上一帧 (←)"
-            className="play-btn"
+            className="play-btn dock-item"
           >
             <IconFrameBack size={14} />
           </button>
           <button
+            ref={(el) => { dockItemRefs.current[2] = el; }}
             onClick={togglePlay}
             title="播放/暂停 (Space)"
-            className={`flex h-8 w-8 items-center justify-center rounded-full text-white transition-all hover:scale-105 active:scale-95 ${
+            className={`dock-item flex h-8 w-8 items-center justify-center rounded-full text-white ${
               isPlaying
                 ? "bg-[#007aff]/15 text-[#007aff] dark:text-[#4da2ff]"
                 : "bg-[#007aff] shadow-sm shadow-[#007aff]/25"
@@ -674,18 +759,40 @@ export const Timeline: React.FC = () => {
             {isPlaying ? <IconPause size={14} /> : <IconPlay size={14} />}
           </button>
           <button
+            ref={(el) => { dockItemRefs.current[3] = el; }}
             onClick={() => setCurrentFrame(currentFrame + 1)}
             title="下一帧 (→)"
-            className="play-btn"
+            className="play-btn dock-item"
           >
             <IconFrameForward size={14} />
           </button>
           <button
+            ref={(el) => { dockItemRefs.current[4] = el; }}
             onClick={() => setCurrentFrame(totalDuration - 1)}
             title="跳到结尾 (End)"
-            className="play-btn"
+            className="play-btn dock-item"
           >
             <IconSkipForward size={14} />
+          </button>
+          {/* Undo / Redo */}
+          <div className="mx-1 h-4 w-px bg-[var(--separator-opaque)] dark:bg-[var(--separator-opaque)]" />
+          <button
+            ref={(el) => { dockItemRefs.current[5] = el; }}
+            onClick={undo}
+            disabled={!canUndo}
+            title="撤销 (Ctrl+Z)"
+            className="play-btn dock-item disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <IconUndo size={14} />
+          </button>
+          <button
+            ref={(el) => { dockItemRefs.current[6] = el; }}
+            onClick={redo}
+            disabled={!canRedo}
+            title="重做 (Ctrl+Y)"
+            className="play-btn dock-item disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <IconRedo size={14} />
           </button>
         </div>
 
