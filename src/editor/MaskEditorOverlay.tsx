@@ -47,6 +47,30 @@ export const MaskEditorOverlay: React.FC<MaskEditorOverlayProps> = ({
   const [dragState, setDragState] = useState<DragState | null>(null);
   const [drawingBox, setDrawingBox] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
 
+  // 将 overlay 容器对齐到 container 的 content box，与 Player 渲染区域完全一致
+  const [box, setBox] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  useEffect(() => {
+    const updateBox = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+      const borderTop = parseFloat(style.borderTopWidth) || 0;
+      const borderRight = parseFloat(style.borderRightWidth) || 0;
+      const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+      setBox({
+        left: borderLeft,
+        top: borderTop,
+        width: rect.width - borderLeft - borderRight,
+        height: rect.height - borderTop - borderBottom,
+      });
+    };
+    updateBox();
+    window.addEventListener("resize", updateBox);
+    return () => window.removeEventListener("resize", updateBox);
+  }, [containerRef]);
+
   // 历史栈：当外部 masks 变化时，如果和当前历史记录不一致则追加
   useEffect(() => {
     const current = history[historyIndex];
@@ -84,13 +108,12 @@ export const MaskEditorOverlay: React.FC<MaskEditorOverlayProps> = ({
   }, [history, historyIndex, onChange]);
 
   const getScale = useCallback((): { scaleX: number; scaleY: number } => {
-    const el = containerRef.current;
-    if (!el) return { scaleX: 1, scaleY: 1 };
+    if (!box.width || !box.height) return { scaleX: 1, scaleY: 1 };
     return {
-      scaleX: el.clientWidth / canvasWidth,
-      scaleY: el.clientHeight / canvasHeight,
+      scaleX: box.width / canvasWidth,
+      scaleY: box.height / canvasHeight,
     };
-  }, [containerRef, canvasWidth, canvasHeight]);
+  }, [box, canvasWidth, canvasHeight]);
 
   const clientToCanvas = useCallback(
     (clientX: number, clientY: number) => {
@@ -248,8 +271,14 @@ export const MaskEditorOverlay: React.FC<MaskEditorOverlayProps> = ({
 
   return (
     <div
-      className="pointer-events-auto absolute inset-0 z-10"
-      style={{ userSelect: "none" }}
+      className="pointer-events-auto absolute z-10"
+      style={{
+        userSelect: "none",
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+      }}
       onMouseDown={handleMouseDown}
     >
       {/* 蒙版视觉预览（半透明覆盖层） */}

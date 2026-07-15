@@ -222,6 +222,7 @@ const CircleHandleOverlay: React.FC<{
   onUpdate: (patch: Record<string, number>) => void;
 }> = ({ clipProps, canvasWidth, canvasHeight, containerRef, onUpdate }) => {
   const [dragging, setDragging] = useState<"move" | "resize" | null>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef<{
     mouseX: number;
     mouseY: number;
@@ -246,12 +247,46 @@ const CircleHandleOverlay: React.FC<{
     : shape === "rounded" ? `${cornerRadius}px`
     : "0px";
 
-  // 把画布坐标换算成容器像素坐标
-  const getScale = useCallback(() => {
-    const el = containerRef.current;
-    if (!el) return 1;
-    return el.clientWidth / canvasWidth;
-  }, [containerRef, canvasWidth]);
+  // 将 overlay 容器对齐到 container 的 content box，与 Player 渲染区域完全一致
+  const [box, setBox] = useState({ left: 0, top: 0, width: 0, height: 0 });
+  useEffect(() => {
+    const updateBox = () => {
+      const el = containerRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const style = window.getComputedStyle(el);
+      const borderLeft = parseFloat(style.borderLeftWidth) || 0;
+      const borderTop = parseFloat(style.borderTopWidth) || 0;
+      const borderRight = parseFloat(style.borderRightWidth) || 0;
+      const borderBottom = parseFloat(style.borderBottomWidth) || 0;
+      setBox({
+        left: borderLeft,
+        top: borderTop,
+        width: rect.width - borderLeft - borderRight,
+        height: rect.height - borderTop - borderBottom,
+      });
+    };
+    updateBox();
+    window.addEventListener("resize", updateBox);
+    return () => window.removeEventListener("resize", updateBox);
+  }, [containerRef]);
+
+  const scaleX = box.width / canvasWidth;
+  const scaleY = box.height / canvasHeight;
+
+  // 把鼠标坐标换算成画布坐标（基于 content box）
+  const clientToCanvas = useCallback(
+    (clientX: number, clientY: number) => {
+      const overlay = overlayRef.current;
+      if (!overlay) return { x: 0, y: 0 };
+      const rect = overlay.getBoundingClientRect();
+      return {
+        x: ((clientX - rect.left) / box.width) * canvasWidth,
+        y: ((clientY - rect.top) / box.height) * canvasHeight,
+      };
+    },
+    [box, canvasWidth, canvasHeight],
+  );
 
   const handleMoveStart = useCallback(
     (e: React.MouseEvent) => {
@@ -266,7 +301,7 @@ const CircleHandleOverlay: React.FC<{
         origRadius: finalRadius,
       };
     },
-    [finalX, finalY, finalRadius, canvasWidth, canvasHeight, getScale],
+    [finalX, finalY, finalRadius, canvasWidth, canvasHeight],
   );
 
   const handleResizeStart = useCallback(
@@ -292,23 +327,16 @@ const CircleHandleOverlay: React.FC<{
     const onMove = (e: MouseEvent) => {
       const start = dragStartRef.current;
       if (!start) return;
-      const scale = getScale();
-      const dx = (e.clientX - start.mouseX) / scale;
-      const dy = (e.clientY - start.mouseY) / scale;
+      const mouseCanvas = clientToCanvas(e.clientX, e.clientY);
+      const dx = mouseCanvas.x - start.origX;
+      const dy = mouseCanvas.y - start.origY;
 
       if (dragging === "move") {
         const newX = Math.max(0, Math.min(100, ((start.origX + dx) / canvasWidth) * 100));
         const newY = Math.max(0, Math.min(100, ((start.origY + dy) / canvasHeight) * 100));
         onUpdate({ finalX: Math.round(newX * 10) / 10, finalY: Math.round(newY * 10) / 10 });
       } else if (dragging === "resize") {
-        // 直接用鼠标到圆心的距离作为新半径，更直观
-        const centerX = start.origX;
-        const centerY = start.origY;
-        const mouseCanvasX = centerX + dx;
-        const mouseCanvasY = centerY + dy;
-        const dist = Math.sqrt(
-          (mouseCanvasX - centerX) ** 2 + (mouseCanvasY - centerY) ** 2
-        );
+        const dist = Math.sqrt(dx * dx + dy * dy);
         const newR = Math.max(20, Math.min(Math.max(canvasWidth, canvasHeight) / 2, dist));
         onUpdate({ finalRadius: Math.round(newR) });
       }
@@ -325,25 +353,34 @@ const CircleHandleOverlay: React.FC<{
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [dragging, canvasWidth, canvasHeight, getScale, onUpdate]);
+  }, [dragging, canvasWidth, canvasHeight, clientToCanvas, onUpdate]);
 
-  const scale = getScale();
-  const cx = finalX * 100;
-  const cy = finalY * 100;
+  // 控制框在 content box 中的像素位置（纯 px，避免 calc 百分比精度问题）
+  const centerXPx = finalX * canvasWidth * scaleX;
+  const centerYPx = finalY * canvasHeight * scaleY;
+  const shapeHalfWPx = shapeHalfW * scaleX;
+  const shapeHalfHPx = shapeHalfH * scaleY;
 
   return (
     <div
-      className="pointer-events-none absolute inset-0"
-      style={{ userSelect: "none" }}
+      ref={overlayRef}
+      className="pointer-events-none absolute z-10"
+      style={{
+        userSelect: "none",
+        left: box.left,
+        top: box.top,
+        width: box.width,
+        height: box.height,
+      }}
     >
       {/* 形状控制框 */}
       <div
         className="pointer-events-auto absolute border-2 border-dashed border-[#007aff] cursor-move"
         style={{
-          left: `calc(${cx}% - ${shapeHalfW * scale}px)`,
-          top: `calc(${cy}% - ${shapeHalfH * scale}px)`,
-          width: shapeHalfW * 2 * scale,
-          height: shapeHalfH * 2 * scale,
+          left: centerXPx - shapeHalfWPx,
+          top: centerYPx - shapeHalfHPx,
+          width: shapeHalfWPx * 2,
+          height: shapeHalfHPx * 2,
           borderRadius: shapeBorderRadius,
           boxShadow: "0 0 0 1px rgba(0,122,255,0.3)",
         }}
@@ -365,11 +402,11 @@ const CircleHandleOverlay: React.FC<{
       <div
         className="pointer-events-none absolute rounded bg-[#007aff] px-1.5 py-0.5 text-[10px] font-medium text-white shadow-sm"
         style={{
-          left: `calc(${cx}% - ${shapeHalfW * scale}px)`,
-          top: `calc(${cy}% - ${shapeHalfH * scale}px - 22px)`,
+          left: centerXPx - shapeHalfWPx,
+          top: centerYPx - shapeHalfHPx - 22,
         }}
       >
-        {shape} · {Math.round(finalX)}%, {Math.round(finalY)}% · r={Math.round(finalRadius)}
+        {shape} · {Math.round(finalX * 100)}%, {Math.round(finalY * 100)}% · r={Math.round(finalRadius)}
       </div>
     </div>
   );
