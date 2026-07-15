@@ -470,6 +470,14 @@ const EffectStackItem: React.FC<{
       {/* 展开的参数编辑区 */}
       {expanded && (
         <div className="border-t border-[var(--separator-opaque)] bg-[var(--surface-sunken)]/50 p-2 dark:border-[var(--separator-opaque)] dark:bg-black/20">
+          {effect.type === "mask" && (
+            <div className="mb-2 rounded bg-[#ff9500]/10 p-1.5 text-[10px] text-[#ff9500] dark:bg-[#ff9500]/15">
+              <div className="font-medium">在预览区编辑蒙版</div>
+              <div className="mt-0.5 text-[9px] opacity-90">
+                选中本效果后，在左侧预览区使用工具栏绘制矩形/圆形/自定义蒙版，支持框选、拖拽调整、羽化和透明度。
+              </div>
+            </div>
+          )}
           <div className="flex flex-col gap-1.5">
             {meta.paramSchema.map((field) => (
               <div key={field.name}>

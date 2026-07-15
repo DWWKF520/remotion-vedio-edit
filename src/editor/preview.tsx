@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CompositionRenderer } from "./renderer";
 import { setPlayerRef, useEditorStore } from "./store";
+import { MaskEditorOverlay } from "./MaskEditorOverlay";
+import { VideoCropOverlay } from "./VideoCropOverlay";
+import type { VideoEffectItem, MaskEffectParams } from "../components/video-effects/VideoEffectStack/types";
 
 /**
  * 预览区：用 @remotion/player 的 <Player> 渲染 CompositionRenderer。
@@ -41,13 +44,17 @@ export const Preview: React.FC = React.memo(() => {
 
   const selectedClip = selectedClipId ? clips[selectedClipId] : null;
   const isCircleShrink = selectedClip?.componentKey === "circleShrinkTransition";
+  const isVideoClip = selectedClip?.componentKey === "videoClip";
+
+  // 查找当前 clip 效果栈中的蒙版效果（用于预览区编辑）
+  const effects = Array.isArray(selectedClip?.props.effects)
+    ? (selectedClip?.props.effects as VideoEffectItem[])
+    : [];
+  const maskEffect = effects.find((e) => e.type === "mask");
+  const maskEffectId = maskEffect?.id ?? null;
+  const maskParams = ((maskEffect?.params as unknown) as MaskEffectParams) ?? { masks: [] };
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [dragState, setDragState] = useState<
-    | { type: "move"; startX: number; startY: number; origX: number; origY: number }
-    | { type: "resize"; startX: number; startY: number; origRadius: number }
-    | null
-  >(null);
 
   const ref = useRef<PlayerRef>(null);
   const callbacksRef = useRef({ onFrameChange, onPlayStateChanged });
@@ -162,6 +169,40 @@ export const Preview: React.FC = React.memo(() => {
               }}
             />
           )}
+
+          {/* 蒙版编辑器叠加层 */}
+          {isVideoClip && selectedClipId && maskEffectId && (
+            <MaskEditorOverlay
+              masks={maskParams.masks || []}
+              canvasWidth={width}
+              canvasHeight={height}
+              containerRef={containerRef}
+              onChange={(nextMasks) => {
+                const nextEffects = effects.map((e) =>
+                  e.id === maskEffectId
+                    ? { ...e, params: { ...e.params, masks: nextMasks } }
+                    : e,
+                );
+                updateClipProps(selectedClipId, { effects: nextEffects });
+              }}
+            />
+          )}
+
+          {/* 视频拖动裁剪层 */}
+          {isVideoClip && selectedClip && selectedClipId && !maskEffectId && (
+            <VideoCropOverlay
+              canvasWidth={width}
+              canvasHeight={height}
+              containerRef={containerRef}
+              videoWidth={Number(selectedClip.props.videoWidth ?? 1920)}
+              videoHeight={Number(selectedClip.props.videoHeight ?? 1080)}
+              positionX={Number(selectedClip.props.positionX ?? 50)}
+              positionY={Number(selectedClip.props.positionY ?? 50)}
+              scale={Number(selectedClip.props.scale ?? 1)}
+              fit={String(selectedClip.props.fit ?? "contain")}
+              onChange={(patch) => updateClipProps(selectedClipId, patch)}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -177,7 +218,7 @@ const CircleHandleOverlay: React.FC<{
   clipProps: Record<string, number | string>;
   canvasWidth: number;
   canvasHeight: number;
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   onUpdate: (patch: Record<string, number>) => void;
 }> = ({ clipProps, canvasWidth, canvasHeight, containerRef, onUpdate }) => {
   const [dragging, setDragging] = useState<"move" | "resize" | null>(null);
@@ -216,7 +257,6 @@ const CircleHandleOverlay: React.FC<{
     (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      const scale = getScale();
       setDragging("move");
       dragStartRef.current = {
         mouseX: e.clientX,

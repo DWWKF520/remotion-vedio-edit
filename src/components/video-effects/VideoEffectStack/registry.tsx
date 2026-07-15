@@ -1,6 +1,7 @@
 import type { EffectMeta, EffectType, EffectWrapper } from "./types";
 import { SlideRightEffect } from "./effects/SlideRightEffect";
 import { CircleShrinkEffect } from "./effects/CircleShrinkEffect";
+import { MaskEffect } from "./effects/MaskEffect";
 
 /** 所有可用效果的元数据 */
 export const EFFECT_META_LIST: EffectMeta[] = [
@@ -83,12 +84,40 @@ export const EFFECT_META_LIST: EffectMeta[] = [
       { name: "bgDim", label: "背景变暗(0-1)", type: "number", min: 0, max: 1 },
     ],
   },
+  {
+    type: "mask",
+    label: "蒙版",
+    color: "#ff9500",
+    icon: (
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="12" cy="12" r="5" />
+      </svg>
+    ),
+    defaultParams: {
+      masks: [],
+      blendMode: "normal",
+    },
+    paramSchema: [
+      {
+        name: "blendMode",
+        label: "混合模式",
+        type: "select",
+        options: [
+          { label: "正常(normal)", value: "normal" },
+          { label: "交集(intersect)", value: "intersect" },
+          { label: "减去(subtract)", value: "subtract" },
+        ],
+      },
+    ],
+  },
 ];
 
 /** 效果包装组件映射 */
 export const EFFECT_WRAPPERS: Record<EffectType, EffectWrapper> = {
   slideRight: SlideRightEffect,
   circleShrink: CircleShrinkEffect,
+  mask: MaskEffect,
 };
 
 /** 根据 type 获取效果元数据 */
