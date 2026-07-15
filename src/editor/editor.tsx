@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { ComponentLibrary } from "./component-library";
 import { Preview } from "./preview";
 import { Timeline } from "./timeline";
@@ -8,6 +8,7 @@ import { useExportStore } from "./export-store";
 import { getComponentDef } from "./registry";
 import { parseSubtitlesText } from "../components/clips/SubtitleTrack";
 import { useThemeStore } from "./theme-store";
+import { gsap, useGSAP } from "./gsap-setup";
 
 /**
  * 编辑器主布局（剪映 PC 风格）：
@@ -462,14 +463,34 @@ const ExportDialog: React.FC = () => {
 
   const hasActive = jobs.some((j) => j.status === "rendering");
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // GSAP 入场动画：背景渐显 + 面板弹性缩放（替代原 animate-fade-in）
+  useGSAP(
+    () => {
+      const tl = gsap.timeline();
+      tl.from(overlayRef.current, { opacity: 0, duration: 0.2 }).from(
+        panelRef.current,
+        { opacity: 0, scale: 0.96, y: 12, duration: 0.3, ease: "back.out(1.4)" },
+        "-=0.1",
+      );
+    },
+    { scope: overlayRef },
+  );
+
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md animate-fade-in"
+      ref={overlayRef}
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-md"
       onClick={(e) => {
         if (e.target === e.currentTarget) setDialogOpen(false);
       }}
     >
-      <div className="glass max-h-[80vh] min-w-[400px] max-w-[520px] overflow-y-auto rounded-2xl border border-[var(--separator)] bg-[var(--surface-overlay)] p-6 text-[#1d1d1f] shadow-2xl dark:border-[var(--separator-opaque)] dark:bg-[#2c2c2e]/80 dark:text-[#f5f5f7]">
+      <div
+        ref={panelRef}
+        className="glass max-h-[80vh] min-w-[400px] max-w-[520px] overflow-y-auto rounded-2xl border border-[var(--separator)] bg-[var(--surface-overlay)] p-6 text-[#1d1d1f] shadow-2xl dark:border-[var(--separator-opaque)] dark:bg-[#2c2c2e]/80 dark:text-[#f5f5f7]"
+      >
         <div className="mb-4 flex items-center justify-between">
           <span className="text-base font-bold">导出任务</span>
           <div className="flex gap-2">

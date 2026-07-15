@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import { useVideoEffects } from "./video-effects";
@@ -7,6 +7,7 @@ import type { ClipEffect, EffectType } from "./types";
 import { EFFECT_META_LIST, getEffectMeta } from "../components/video-effects/VideoEffectStack/registry";
 import type { VideoEffectItem, EffectType as StackEffectType } from "../components/video-effects/VideoEffectStack/types";
 import { nanoid } from "./nanoid";
+import { gsap, useGSAP } from "./gsap-setup";
 
 /** 属性面板：编辑选中 clip 的 props，支持收起为窄条 */
 export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
@@ -34,10 +35,25 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
     ? (clip.props.effects as VideoEffectItem[])
     : [];
 
+  const asideRef = useRef<HTMLElement>(null);
+
+  // 折叠/展开切换时，新侧栏从右侧滑入（替代原瞬时切换）
+  useGSAP(
+    () => {
+      gsap.from(asideRef.current, {
+        opacity: 0,
+        x: 16,
+        duration: 0.3,
+        ease: "power3.out",
+      });
+    },
+    { scope: asideRef, dependencies: [collapsed], revertOnUpdate: true },
+  );
+
   // 收起状态：窄条仅显示图标提示
   if (collapsed) {
     return (
-      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-l border-[var(--separator)] bg-[var(--surface-overlay)] py-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
+      <aside ref={asideRef} className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-l border-[var(--separator)] bg-[var(--surface-overlay)] py-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
         <svg
           width="16"
           height="16"
@@ -60,7 +76,7 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
   }
 
   return (
-    <aside className="flex w-[260px] flex-shrink-0 flex-col overflow-hidden border-l border-[var(--separator)] bg-[var(--surface-overlay)] text-[#1d1d1f] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60 dark:text-[#f5f5f7]">
+    <aside ref={asideRef} className="flex w-[260px] flex-shrink-0 flex-col overflow-hidden border-l border-[var(--separator)] bg-[var(--surface-overlay)] text-[#1d1d1f] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60 dark:text-[#f5f5f7]">
       <div className="overflow-y-auto p-4 text-xs">
         <div className="mb-3 text-[11px] font-semibold uppercase tracking-wider text-[#8e8e93] dark:text-[#8e8e93]">
           属性 / Properties

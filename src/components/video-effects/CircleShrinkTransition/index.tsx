@@ -2,12 +2,10 @@ import React from "react";
 import {
   AbsoluteFill,
   OffthreadVideo,
-  interpolate,
   useCurrentFrame,
   useVideoConfig,
-  Easing,
-  spring,
 } from "remotion";
+import { computeCircleShrink, getCircleShrinkGlow } from "./shared";
 
 /**
  * 形状收缩转场 · Shape Shrink Transition
@@ -102,63 +100,6 @@ export const CircleShrinkTransition: React.FC<{
   const width = vw || videoWidth;
   const height = vh || videoHeight;
 
-  // 起始超大半径（能覆盖整个画面）
-  const maxRadius = Math.sqrt(width * width + height * height) / 2 + 200;
-
-  // 收缩阶段进度：从画面中心直接收缩到最终位置
-  const shrinkProgress = interpolate(frame, [0, shrinkDuration], [0, 1], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-    easing: Easing.out(Easing.cubic),
-  });
-
-  // 计算当前中心位置：起始在画面中心，直接收缩到最终位置
-  const startX = width / 2;
-  const startY = height / 2;
-  const endX = (finalX / 100) * width;
-  const endY = (finalY / 100) * height;
-
-  const curX = interpolate(shrinkProgress, [0, 1], [startX, endX], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const curY = interpolate(shrinkProgress, [0, 1], [startY, endY], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  const curRadius = interpolate(shrinkProgress, [0, 1], [maxRadius, finalRadius], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // 根据形状计算宽高和 borderRadius
-  // finalRadius 作为"半宽"基准：circle/square/rounded 时高=宽，rect 时按 rectAspect 拉伸
-  const shapeHalfW = shape === "rect" ? curRadius * rectAspect : curRadius;
-  const shapeHalfH = curRadius;
-  const shapeBorderRadius =
-    shape === "circle" ? "50%"
-    : shape === "rounded" ? `${cornerRadius}px`
-    : "0px";
-
-  // scale 模式：视频从画布尺寸开始，随形状等比例缩小
-  // 起始时视频 1:1 匹配底层全屏视频，结束时视频填满形状（cover 语义）
-  const finalShapeW = shape === "rect" ? finalRadius * rectAspect * 2 : finalRadius * 2;
-  const finalShapeH = finalRadius * 2;
-  const videoRatio = width / height;
-  const finalShapeRatio = finalShapeW / finalShapeH;
-  const finalScale =
-    videoRatio > finalShapeRatio ? finalShapeH / height : finalShapeW / width;
-  const videoScale = interpolate(shrinkProgress, [0, 1], [1, finalScale], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  // 背景变暗进度
-  const dimProgress = interpolate(frame, [2, shrinkDuration + 4], [0, bgDim], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
   // 已弃用参数，保留兼容
   void flyDelay;
   void flyDuration;
@@ -166,13 +107,27 @@ export const CircleShrinkTransition: React.FC<{
   void focusY;
   void focusRadius;
 
-  // 边框弹性出现
-  const ringSpring = spring({
-    frame: frame - 2,
-    fps: 30,
-    config: { damping: 10, mass: 0.4, stiffness: 200 },
+  // 收缩动画逐帧状态（计算逻辑与 CircleShrinkEffect 共享，确保动画曲线一致）
+  const {
+    curX,
+    curY,
+    shapeHalfW,
+    shapeHalfH,
+    shapeBorderRadius,
+    videoScale,
+    dimProgress,
+    ringScale,
+  } = computeCircleShrink(frame, 30, width, height, {
+    shape,
+    rectAspect,
+    cornerRadius,
+    contentMode,
+    finalX,
+    finalY,
+    finalRadius,
+    shrinkDuration,
+    bgDim,
   });
-  const ringScale = 0.8 + 0.2 * Math.min(1, ringSpring);
 
   if (!src) {
     return (
@@ -215,12 +170,7 @@ export const CircleShrinkTransition: React.FC<{
           height: shapeHalfH * 2,
           borderRadius: shapeBorderRadius,
           overflow: "hidden",
-          boxShadow:
-            glowIntensity > 0
-              ? `0 0 ${40 * glowIntensity}px rgba(255,255,255,${0.3 * glowIntensity}), 0 0 ${
-                  80 * glowIntensity
-                }px rgba(255,255,255,${0.15 * glowIntensity})`
-              : "none",
+          boxShadow: getCircleShrinkGlow(glowIntensity),
         }}
       >
         {contentMode === "scale" ? (

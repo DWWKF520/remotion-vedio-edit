@@ -261,7 +261,6 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s2End}
             fps={fps}
             fontScale={fontScale}
-            textColor={textColor}
             textStroke={textStroke}
           />
         )}
@@ -279,8 +278,6 @@ export const LuosifenAnimation: React.FC<{
             frame={frame - s4End}
             fps={fps}
             fontScale={fontScale}
-            textColor={textColor}
-            textStroke={textStroke}
           />
         )}
         {frame >= s5End && frame < s6End && (
@@ -763,9 +760,8 @@ const Stage3: React.FC<{
   frame: number;
   fps: number;
   fontScale: number;
-  textColor: string;
   textStroke: number;
-}> = ({ frame, fps, fontScale, textColor, textStroke }) => {
+}> = ({ frame, fps, fontScale, textStroke }) => {
   const line1 = enter(frame, 0, 16);
   const line2 = enter(frame, 18, 16);
   const numEnter = enter(frame, 38, 20);
@@ -1133,9 +1129,7 @@ const Stage5: React.FC<{
   frame: number;
   fps: number;
   fontScale: number;
-  textColor: string;
-  textStroke: number;
-}> = ({ frame, fps, fontScale, textColor, textStroke }) => {
+}> = ({ frame, fps, fontScale }) => {
   const line1 = enter(frame, 0, 16);
   const line2 = enter(frame, 15, 16);
   const badgeEnter = enter(frame, 32, 22);
@@ -1146,10 +1140,6 @@ const Stage5: React.FC<{
     config: { damping: 8, mass: 0.7, stiffness: 220 },
   });
   const badgeScale = 0.3 + 0.7 * Math.min(1, badgeSpring);
-
-  const strongStroke = textStroke > 0
-    ? `0 0 ${textStroke * 6}px rgba(0,0,0,0.85), 0 ${textStroke * 2}px ${textStroke * 6}px rgba(0,0,0,0.7)`
-    : "none";
 
   return (
     <div

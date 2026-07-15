@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { registry } from "./registry";
 import { useEditorStore } from "./store";
 import type { ComponentManifest } from "./registry-types";
 import type { Preset } from "./types";
 import { VideoLibrary } from "./video-library";
+import { gsap, useGSAP } from "./gsap-setup";
 
 // 字幕类组件 category
 const SUBTITLE_CATEGORY = "subtitles";
@@ -24,10 +25,25 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
         )
       : registry.filter((d) => d.category === SUBTITLE_CATEGORY && !d.hidden);
 
+  const asideRef = useRef<HTMLElement>(null);
+
+  // 折叠/展开切换时，新侧栏从左侧滑入（替代原瞬时切换）
+  useGSAP(
+    () => {
+      gsap.from(asideRef.current, {
+        opacity: 0,
+        x: -16,
+        duration: 0.3,
+        ease: "power3.out",
+      });
+    },
+    { scope: asideRef, dependencies: [collapsed], revertOnUpdate: true },
+  );
+
   // 收起状态：窄条仅显示图标
   if (collapsed) {
     return (
-      <aside className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-r border-[var(--separator)] bg-[var(--surface-overlay)] py-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
+      <aside ref={asideRef} className="flex w-12 flex-shrink-0 flex-col items-center gap-2 border-r border-[var(--separator)] bg-[var(--surface-overlay)] py-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
         {tab !== "presets" &&
           items.map((def) => (
             <MaterialButton
@@ -42,7 +58,7 @@ export const ComponentLibrary: React.FC<{ collapsed: boolean }> = ({
   }
 
   return (
-    <aside className="flex w-[200px] flex-shrink-0 flex-col overflow-hidden border-r border-[var(--separator)] bg-[var(--surface-overlay)] text-[#1d1d1f] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60 dark:text-[#f5f5f7]">
+    <aside ref={asideRef} className="flex w-[200px] flex-shrink-0 flex-col overflow-hidden border-r border-[var(--separator)] bg-[var(--surface-overlay)] text-[#1d1d1f] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60 dark:text-[#f5f5f7]">
       {/* Tab 切换 */}
       <div className="flex flex-shrink-0 border-b border-[var(--separator)] dark:border-[var(--separator)]">
         <TabBtn
