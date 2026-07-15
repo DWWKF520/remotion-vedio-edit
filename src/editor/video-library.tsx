@@ -255,6 +255,7 @@ export const VideoLibrary: React.FC = () => {
             <MediaItemCard
               key={item.url}
               item={item}
+              fps={fps}
               effects={item.type === "video" ? videoEffects : EMPTY_EFFECTS}
               onAdd={() => handleAddToTimeline(item)}
               onDelete={() => handleDelete(item.url, item.name)}
@@ -289,11 +290,13 @@ const SubTabBtn: React.FC<{
 /** 单个媒体卡片 */
 const MediaItemCard: React.FC<{
   item: MediaItem;
+  /** 帧率，用于把视频秒数换算为帧（应用特效时确定时长） */
+  fps: number;
   /** 视频特效列表（仅视频卡片传入；图片传空数组） */
   effects: VideoEffect[];
   onAdd: () => void;
   onDelete: () => void;
-}> = ({ item, effects, onAdd, onDelete }) => {
+}> = ({ item, fps, effects, onAdd, onDelete }) => {
   const [thumb, setThumb] = useState<string | null>(null);
   const [effectOpen, setEffectOpen] = useState(false);
 
@@ -485,7 +488,13 @@ const MediaItemCard: React.FC<{
                   <button
                     key={e.key}
                     onClick={() => {
-                      e.apply(item.url, item.name);
+                      e.apply(
+                        item.url,
+                        item.name,
+                        item.duration
+                          ? Math.ceil(item.duration * fps)
+                          : undefined,
+                      );
                       setEffectOpen(false);
                     }}
                     title={e.title}

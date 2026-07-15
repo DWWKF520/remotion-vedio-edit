@@ -103,15 +103,23 @@ interface EditorStore {
   addImageClip: (imageSrc: string, imageName?: string) => void;
   /**
    * 添加圆形收缩转场到 overlay 轨道。
-   * 默认 60 帧（2s），src 指向指定视频。
+   * durationFrames 传视频原始时长（帧）；未传则回退到 2s（60 帧 @30fps）。
    */
-  addCircleShrinkClip: (videoSrc: string, videoName?: string) => void;
+  addCircleShrinkClip: (
+    videoSrc: string,
+    videoName?: string,
+    durationFrames?: number,
+  ) => void;
   /**
    * 添加视频右移渐变转场到 overlay 轨道。
    * 视频向右移动并缩小，左侧露出背景便于叠加讲解动画。
-   * 默认 90 帧（3s），src 指向指定视频。
+   * durationFrames 传视频原始时长（帧）；未传则回退到 3s（90 帧 @30fps）。
    */
-  addSlideRightClip: (videoSrc: string, videoName?: string) => void;
+  addSlideRightClip: (
+    videoSrc: string,
+    videoName?: string,
+    durationFrames?: number,
+  ) => void;
   removeClip: (clipId: string) => void;
   selectClip: (clipId: string | null) => void;
   updateClipProps: (clipId: string, props: Record<string, unknown>) => void;
@@ -328,7 +336,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
-  addCircleShrinkClip: (videoSrc, videoName) => {
+  addCircleShrinkClip: (videoSrc, videoName, durationFrames) => {
     const state = get();
     // 加到 overlay 轨道（没有就新建）
     let targetTrack = state.tracks.find((t) => t.kind === "overlay");
@@ -344,9 +352,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       if (c && c.start + c.duration > start) start = c.start + c.duration;
     }
 
-    // 默认 2 秒 @30fps = 60 帧
+    // 时长跟随原视频；未提供则回退 2s（60 帧 @30fps）
     const fps = state.fps || 30;
-    const duration = 2 * fps;
+    const duration = durationFrames ?? 2 * fps;
 
     const clip: Clip = {
       id: nanoid(),
@@ -394,7 +402,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
     });
   },
 
-  addSlideRightClip: (videoSrc, videoName) => {
+  addSlideRightClip: (videoSrc, videoName, durationFrames) => {
     const state = get();
     // 加到 overlay 轨道（没有就新建）
     let targetTrack = state.tracks.find((t) => t.kind === "overlay");
@@ -410,9 +418,9 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
       if (c && c.start + c.duration > start) start = c.start + c.duration;
     }
 
-    // 默认 3 秒 @30fps = 90 帧
+    // 时长跟随原视频；未提供则回退 3s（90 帧 @30fps）
     const fps = state.fps || 30;
-    const duration = 3 * fps;
+    const duration = durationFrames ?? 3 * fps;
 
     const clip: Clip = {
       id: nanoid(),

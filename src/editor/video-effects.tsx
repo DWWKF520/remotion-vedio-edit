@@ -22,8 +22,8 @@ export type VideoEffect = {
   color: string;
   /** 图标节点（currentColor 取按钮文字色） */
   icon: React.ReactNode;
-  /** 点击应用：传入视频 url 与名称 */
-  apply: (url: string, name: string) => void;
+  /** 点击应用：传入视频 url、名称、视频时长（帧，可选，跟随原视频） */
+  apply: (url: string, name: string, durationFrames?: number) => void;
 };
 
 /** 图片卡片复用的空特效列表（避免每帧新建数组） */
@@ -56,7 +56,8 @@ export const useVideoEffects = (): VideoEffect[] => {
           <circle cx="12" cy="12" r="9" />
         </svg>
       ),
-      apply: (url, name) => addCircleShrinkClip(url, name),
+      apply: (url, name, durationFrames) =>
+        addCircleShrinkClip(url, name, durationFrames),
     },
     {
       key: "slideRight",
@@ -78,7 +79,8 @@ export const useVideoEffects = (): VideoEffect[] => {
           <path d="M17 12h4M19 10l2 2-2 2" />
         </svg>
       ),
-      apply: (url, name) => addSlideRightClip(url, name),
+      apply: (url, name, durationFrames) =>
+        addSlideRightClip(url, name, durationFrames),
     },
   ];
 };

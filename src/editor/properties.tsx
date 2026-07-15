@@ -129,7 +129,7 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
                   {videoEffects.map((e) => (
                     <button
                       key={e.key}
-                      onClick={() => e.apply(videoSrc, clip.name)}
+                      onClick={() => e.apply(videoSrc, clip.name, clip.duration)}
                       title={e.title}
                       className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-white shadow-sm transition-transform hover:scale-105"
                       style={{ background: e.color }}
