@@ -26,6 +26,7 @@ const manifest: ComponentManifest = {
     showShadow: 1,
     videoWidth: 1920,
     videoHeight: 1080,
+    effects: [],
   },
   // 5.13s @ 30fps = 154 帧，对应默认视频
   defaultDuration: 154,

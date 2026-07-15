@@ -261,6 +261,7 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         scale: 1,
         borderRadius: 0,
         showShadow: 1,
+        effects: [],
       },
     };
 
@@ -338,23 +339,66 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   addCircleShrinkClip: (videoSrc, videoName, durationFrames) => {
     const state = get();
-    // 加到 overlay 轨道（没有就新建）
-    let targetTrack = state.tracks.find((t) => t.kind === "overlay");
-    if (!targetTrack) {
-      get().addTrack("overlay");
-      targetTrack = get().tracks.find((t) => t.kind === "overlay");
-      if (!targetTrack) return;
+    const selectedClip = state.selectedClipId
+      ? state.clips[state.selectedClipId]
+      : null;
+    // 仅当选中 clip 的 src 与传入视频源相同时，才视为叠加（自动对齐）
+    // 从视频库添加时 src 不同，走追加逻辑
+    const selectedHasSameVideo =
+      selectedClip &&
+      typeof selectedClip.props.src === "string" &&
+      selectedClip.props.src === videoSrc;
+
+    // 找到选中 clip 所在轨道的索引，用于确定新轨道的位置
+    let selectedTrackIndex = -1;
+    if (selectedClip) {
+      selectedTrackIndex = state.tracks.findIndex((t) =>
+        t.clipIds.includes(selectedClip.id),
+      );
     }
 
+    let targetTrack: Track | undefined;
     let start = 0;
-    for (const cid of targetTrack.clipIds) {
-      const c = state.clips[cid];
-      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    let duration: number;
+    const fps = state.fps || 30;
+
+    if (selectedHasSameVideo && selectedTrackIndex >= 0) {
+      // 从已有视频类 clip 叠加：时间对齐，放到更上层的新轨道
+      start = selectedClip.start;
+      duration = durationFrames ?? selectedClip.duration;
+
+      // 在选中轨道后面插入新的 overlay 轨道
+      const newTrackObj = makeTrack(
+        `Overlay ${state.tracks.length + 1}`,
+        "overlay",
+      );
+      set((s) => ({
+        tracks: [
+          ...s.tracks.slice(0, selectedTrackIndex + 1),
+          newTrackObj,
+          ...s.tracks.slice(selectedTrackIndex + 1),
+        ],
+      }));
+      targetTrack = get().tracks.find((t) => t.id === newTrackObj.id);
+    } else {
+      // 无选中或选中非同款视频：加到最上层 overlay 轨道末尾
+      let overlayTracks = state.tracks.filter((t) => t.kind === "overlay");
+      if (overlayTracks.length === 0) {
+        get().addTrack("overlay");
+        overlayTracks = get().tracks.filter((t) => t.kind === "overlay");
+      }
+      targetTrack = overlayTracks[overlayTracks.length - 1];
+      if (!targetTrack) return;
+
+      const latestState = get();
+      for (const cid of targetTrack.clipIds) {
+        const c = latestState.clips[cid];
+        if (c && c.start + c.duration > start) start = c.start + c.duration;
+      }
+      duration = durationFrames ?? 2 * fps;
     }
 
-    // 时长跟随原视频；未提供则回退 2s（60 帧 @30fps）
-    const fps = state.fps || 30;
-    const duration = durationFrames ?? 2 * fps;
+    if (!targetTrack) return;
 
     const clip: Clip = {
       id: nanoid(),
@@ -404,23 +448,66 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
 
   addSlideRightClip: (videoSrc, videoName, durationFrames) => {
     const state = get();
-    // 加到 overlay 轨道（没有就新建）
-    let targetTrack = state.tracks.find((t) => t.kind === "overlay");
-    if (!targetTrack) {
-      get().addTrack("overlay");
-      targetTrack = get().tracks.find((t) => t.kind === "overlay");
-      if (!targetTrack) return;
+    const selectedClip = state.selectedClipId
+      ? state.clips[state.selectedClipId]
+      : null;
+    // 仅当选中 clip 的 src 与传入视频源相同时，才视为叠加（自动对齐）
+    // 从视频库添加时 src 不同，走追加逻辑
+    const selectedHasSameVideo =
+      selectedClip &&
+      typeof selectedClip.props.src === "string" &&
+      selectedClip.props.src === videoSrc;
+
+    // 找到选中 clip 所在轨道的索引，用于确定新轨道的位置
+    let selectedTrackIndex = -1;
+    if (selectedClip) {
+      selectedTrackIndex = state.tracks.findIndex((t) =>
+        t.clipIds.includes(selectedClip.id),
+      );
     }
 
+    let targetTrack: Track | undefined;
     let start = 0;
-    for (const cid of targetTrack.clipIds) {
-      const c = state.clips[cid];
-      if (c && c.start + c.duration > start) start = c.start + c.duration;
+    let duration: number;
+    const fps = state.fps || 30;
+
+    if (selectedHasSameVideo && selectedTrackIndex >= 0) {
+      // 从已有视频类 clip 叠加：时间对齐，放到更上层的新轨道
+      start = selectedClip.start;
+      duration = durationFrames ?? selectedClip.duration;
+
+      // 在选中轨道后面插入新的 overlay 轨道
+      const newTrackObj = makeTrack(
+        `Overlay ${state.tracks.length + 1}`,
+        "overlay",
+      );
+      set((s) => ({
+        tracks: [
+          ...s.tracks.slice(0, selectedTrackIndex + 1),
+          newTrackObj,
+          ...s.tracks.slice(selectedTrackIndex + 1),
+        ],
+      }));
+      targetTrack = get().tracks.find((t) => t.id === newTrackObj.id);
+    } else {
+      // 无选中或选中非同款视频：加到最上层 overlay 轨道末尾
+      let overlayTracks = state.tracks.filter((t) => t.kind === "overlay");
+      if (overlayTracks.length === 0) {
+        get().addTrack("overlay");
+        overlayTracks = get().tracks.filter((t) => t.kind === "overlay");
+      }
+      targetTrack = overlayTracks[overlayTracks.length - 1];
+      if (!targetTrack) return;
+
+      const latestState = get();
+      for (const cid of targetTrack.clipIds) {
+        const c = latestState.clips[cid];
+        if (c && c.start + c.duration > start) start = c.start + c.duration;
+      }
+      duration = durationFrames ?? 3 * fps;
     }
 
-    // 时长跟随原视频；未提供则回退 3s（90 帧 @30fps）
-    const fps = state.fps || 30;
-    const duration = durationFrames ?? 3 * fps;
+    if (!targetTrack) return;
 
     const clip: Clip = {
       id: nanoid(),

@@ -1,9 +1,12 @@
-import React from "react";
+import React, { useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import { useVideoEffects } from "./video-effects";
 import { EFFECT_LIST } from "./types";
 import type { ClipEffect, EffectType } from "./types";
+import { EFFECT_META_LIST, getEffectMeta } from "../components/VideoEffectStack/registry";
+import type { VideoEffectItem, EffectType as StackEffectType } from "../components/VideoEffectStack/types";
+import { nanoid } from "./nanoid";
 
 /** 属性面板：编辑选中 clip 的 props，支持收起为窄条 */
 export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
@@ -17,10 +20,19 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
 
   const clip = selectedClipId ? clips[selectedClipId] : null;
   const def = clip ? getComponentDef(clip.componentKey) : null;
-  // 视频特效列表（仅对视频片段显示应用入口）
+  // 视频特效列表（对所有含视频 src 的 clip 显示应用入口，支持叠加）
   const videoEffects = useVideoEffects();
+  const hasVideoSrc =
+    !!clip &&
+    typeof clip.props.src === "string" &&
+    clip.props.src.length > 0;
+  const videoSrc = hasVideoSrc ? String(clip.props.src) : "";
+
+  // 效果栈：仅对 videoClip 组件显示
   const isVideoClip = clip?.componentKey === "videoClip";
-  const videoSrc = isVideoClip ? String(clip?.props.src ?? "") : "";
+  const clipEffects: VideoEffectItem[] = Array.isArray(clip?.props.effects)
+    ? (clip.props.effects as VideoEffectItem[])
+    : [];
 
   // 收起状态：窄条仅显示图标提示
   if (collapsed) {
@@ -121,10 +133,81 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
               />
             </div>
 
-            {/* 视频特效：仅对视频片段显示，点击对该视频应用对应特效（加到 Overlay 轨道） */}
-            {isVideoClip && videoSrc && videoEffects.length > 0 && (
+            {/* 叠加效果栈：仅对 videoClip 显示，支持多层叠加，后加的作用在前一个效果之上 */}
+            {isVideoClip && (
               <div className="border-t border-[var(--separator)] pt-2 dark:border-[var(--separator)]">
-                <div className={`${labelClass} mb-2`}>视频特效</div>
+                <div className={`${labelClass} mb-2 flex items-center justify-between`}>
+                  <span>叠加效果</span>
+                  <span className="text-[9px] text-[#8e8e93] dark:text-[#8e8e93]">
+                    共 {clipEffects.length} 层
+                  </span>
+                </div>
+
+                {/* 已添加的效果列表 */}
+                {clipEffects.length > 0 && (
+                  <div className="mb-2 flex flex-col gap-1">
+                    {clipEffects.map((eff, idx) => {
+                      return (
+                        <EffectStackItem
+                          key={eff.id}
+                          effect={eff}
+                          index={idx}
+                          total={clipEffects.length}
+                          onRemove={() => {
+                            const next = clipEffects.filter((e) => e.id !== eff.id);
+                            updateClipProps(clip.id, { effects: next });
+                          }}
+                          onMoveUp={() => {
+                            if (idx === 0) return;
+                            const next = [...clipEffects];
+                            [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+                            updateClipProps(clip.id, { effects: next });
+                          }}
+                          onMoveDown={() => {
+                            if (idx === clipEffects.length - 1) return;
+                            const next = [...clipEffects];
+                            [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
+                            updateClipProps(clip.id, { effects: next });
+                          }}
+                          onParamChange={(paramName, value) => {
+                            const next = clipEffects.map((e) =>
+                              e.id === eff.id
+                                ? { ...e, params: { ...e.params, [paramName]: value } }
+                                : e,
+                            );
+                            updateClipProps(clip.id, { effects: next });
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 添加效果按钮 */}
+                <AddEffectButton
+                  onAdd={(type) => {
+                    const meta = getEffectMeta(type);
+                    if (!meta) return;
+                    const newEffect: VideoEffectItem = {
+                      id: nanoid(),
+                      type,
+                      params: JSON.parse(JSON.stringify(meta.defaultParams)),
+                    };
+                    const next = [...clipEffects, newEffect];
+                    updateClipProps(clip.id, { effects: next });
+                  }}
+                />
+
+                <div className="mt-1.5 text-[9px] text-[#8e8e93] dark:text-[#8e8e93]">
+                  按顺序叠加，下层先应用，上层后应用
+                </div>
+              </div>
+            )}
+
+            {/* 视频特效：对所有含视频 src 的 clip 显示，作为独立 clip 加到轨道 */}
+            {hasVideoSrc && videoSrc && videoEffects.length > 0 && (
+              <div className="border-t border-[var(--separator)] pt-2 dark:border-[var(--separator)]">
+                <div className={`${labelClass} mb-2`}>视频特效（独立片段）</div>
                 <div className="flex flex-wrap gap-1.5">
                   {videoEffects.map((e) => (
                     <button
@@ -140,7 +223,7 @@ export const PropertiesPanel: React.FC<{ collapsed: boolean }> = ({
                   ))}
                 </div>
                 <div className="mt-1.5 text-[9px] text-[#8e8e93] dark:text-[#8e8e93]">
-                  点击将当前视频作为特效加到 Overlay 轨道
+                  点击将当前视频作为独立特效片段加到轨道
                 </div>
               </div>
             )}
@@ -300,6 +383,199 @@ const EffectPicker: React.FC<{
           title="持续帧数"
         />
       </div>
+    </div>
+  );
+};
+
+/** 效果栈中的单个效果项（可展开编辑参数） */
+const EffectStackItem: React.FC<{
+  effect: VideoEffectItem;
+  index: number;
+  total: number;
+  onRemove: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onParamChange: (paramName: string, value: unknown) => void;
+}> = ({ effect, index, total, onRemove, onMoveUp, onMoveDown, onParamChange }) => {
+  const [expanded, setExpanded] = useState(false);
+  const meta = getEffectMeta(effect.type);
+
+  if (!meta) return null;
+
+  return (
+    <div className="overflow-hidden rounded-md border border-[var(--separator-opaque)] dark:border-[var(--separator-opaque)]">
+      {/* 头部 */}
+      <div
+        className="flex items-center gap-1.5 px-2 py-1.5 cursor-pointer transition-colors hover:bg-[var(--surface-sunken)] dark:hover:bg-black/30"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <span
+          className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-white text-[10px] font-semibold"
+          style={{ background: meta.color }}
+          title={meta.label}
+        >
+          {index + 1}
+        </span>
+        <span className="flex-1 truncate text-[11px] font-medium text-[#1d1d1f] dark:text-[#f5f5f7]">
+          {meta.label}
+        </span>
+        {/* 上移/下移/删除按钮 */}
+        <div className="flex gap-0.5" onClick={(e) => e.stopPropagation()}>
+          <button
+            onClick={onMoveUp}
+            disabled={index === 0}
+            className="flex h-5 w-5 items-center justify-center rounded text-[#8e8e93] hover:bg-[var(--surface-sunken)] dark:hover:bg-black/40 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="上移一层"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 15l-6-6-6 6" />
+            </svg>
+          </button>
+          <button
+            onClick={onMoveDown}
+            disabled={index === total - 1}
+            className="flex h-5 w-5 items-center justify-center rounded text-[#8e8e93] hover:bg-[var(--surface-sunken)] dark:hover:bg-black/40 disabled:opacity-30 disabled:cursor-not-allowed"
+            title="下移一层"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+          <button
+            onClick={onRemove}
+            className="flex h-5 w-5 items-center justify-center rounded text-[#ff3b30] hover:bg-[#ff3b30]/10"
+            title="删除效果"
+          >
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* 展开箭头 */}
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={`text-[#8e8e93] transition-transform ${expanded ? "rotate-180" : ""}`}
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </div>
+
+      {/* 展开的参数编辑区 */}
+      {expanded && (
+        <div className="border-t border-[var(--separator-opaque)] bg-[var(--surface-sunken)]/50 p-2 dark:border-[var(--separator-opaque)] dark:bg-black/20">
+          <div className="flex flex-col gap-1.5">
+            {meta.paramSchema.map((field) => (
+              <div key={field.name}>
+                <label className="mb-0.5 block text-[9px] uppercase tracking-wide text-[#8e8e93] dark:text-[#8e8e93]">
+                  {field.label}
+                </label>
+                {field.type === "color" ? (
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="color"
+                      value={String(effect.params[field.name] ?? "#000000")}
+                      onChange={(e) => onParamChange(field.name, e.target.value)}
+                      className="h-6 w-8 cursor-pointer rounded border border-[var(--separator-opaque)] bg-transparent dark:border-[var(--separator-opaque)]"
+                    />
+                    <input
+                      type="text"
+                      value={String(effect.params[field.name] ?? "")}
+                      onChange={(e) => onParamChange(field.name, e.target.value)}
+                      className={`${inputClass} flex-1 !py-1 !text-[10px]`}
+                    />
+                  </div>
+                ) : field.type === "select" ? (
+                  <select
+                    value={String(effect.params[field.name] ?? "")}
+                    onChange={(e) => onParamChange(field.name, e.target.value)}
+                    className={`${selectClass} !py-1 !text-[10px] cursor-pointer w-full`}
+                  >
+                    {field.options?.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : field.type === "number" ? (
+                  <input
+                    type="number"
+                    min={field.min}
+                    max={field.max}
+                    step={0.01}
+                    value={Number(effect.params[field.name] ?? 0)}
+                    onChange={(e) => onParamChange(field.name, Number(e.target.value))}
+                    className={`${inputClass} !py-1 !text-[10px] w-full`}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={String(effect.params[field.name] ?? "")}
+                    onChange={(e) => onParamChange(field.name, e.target.value)}
+                    className={`${inputClass} !py-1 !text-[10px] w-full`}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/** 添加效果按钮（下拉选择要添加的效果类型） */
+const AddEffectButton: React.FC<{
+  onAdd: (type: StackEffectType) => void;
+}> = ({ onAdd }) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-center gap-1 rounded-md border border-dashed border-[var(--separator-opaque)] bg-[var(--surface-sunken)]/50 px-2 py-1.5 text-[10px] font-medium text-[#007aff] transition-colors hover:border-[#007aff]/40 hover:bg-[#007aff]/5 dark:border-[var(--separator-opaque)] dark:text-[#4da2ff] dark:hover:border-[#0a84ff]/40 dark:hover:bg-[#0a84ff]/10"
+      >
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+        添加效果
+      </button>
+
+      {open && (
+        <>
+          <div
+            className="fixed inset-0 z-30"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute left-0 right-0 top-full z-40 mt-1 overflow-hidden rounded-lg border border-[var(--separator-opaque)] bg-[var(--surface-overlay)] shadow-lg dark:border-[var(--separator-opaque)] dark:bg-[#2c2c2e]">
+            {EFFECT_META_LIST.map((m) => (
+              <button
+                key={m.type}
+                onClick={() => {
+                  onAdd(m.type);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center gap-2 px-2 py-1.5 text-left text-[10px] font-medium text-[#1d1d1f] transition-colors hover:bg-[var(--surface-sunken)] dark:text-[#f5f5f7] dark:hover:bg-black/30"
+              >
+                <span
+                  className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded text-white"
+                  style={{ background: m.color }}
+                >
+                  {m.icon}
+                </span>
+                <span className="flex-1 truncate">{m.label}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 };
