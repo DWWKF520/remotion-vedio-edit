@@ -2,10 +2,11 @@ import React from "react";
 import {
   AbsoluteFill,
   OffthreadVideo,
+  interpolate,
   useCurrentFrame,
   useVideoConfig,
+  Easing,
 } from "remotion";
-import { computeSlideRight, SLIDE_RIGHT_TRANSFORM_ORIGIN_MAP } from "./shared";
 
 /**
  * 视频右移渐变 · Slide-Right Transition
@@ -16,6 +17,20 @@ import { computeSlideRight, SLIDE_RIGHT_TRANSFORM_ORIGIN_MAP } from "./shared";
  * 使用方式：叠加在 VideoClip 上层（同 src、同起始），或直接作为视频片段使用。
  * 建议放在 overlay 轨道，背景设为透明即可露出底层视频/动画。
  */
+
+/** 把 #RRGGBB 转成 rgba(r,g,b,a)。非 hex 输入退化为纯色 + transparent 关键字。 */
+function toRgba(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (m) {
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 255;
+    const g = (n >> 8) & 255;
+    const b = n & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  // 退化：无法解析时，用 transparent 占位（可能略带灰边）
+  return alpha === 0 ? "transparent" : hex;
+}
 
 export const SlideRightTransition: React.FC<{
   /** 视频地址 */
@@ -85,25 +100,46 @@ export const SlideRightTransition: React.FC<{
   const width = vw || videoWidth;
   const height = vh || videoHeight;
 
+  // 滑动进度 0 -> 1（缓出）
+  const slideProgress = interpolate(frame, [0, slideDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
+  });
+
+  // 视频水平位移（像素）
+  const offsetX = (slideDistance / 100) * width * slideProgress;
+
+  // 视频缩放：1 -> finalScale
+  const videoScale = interpolate(slideProgress, [0, 1], [1, finalScale], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // 左边缘渐变蒙版淡入
+  const maskOpacity = interpolate(
+    frame,
+    [0, Math.max(1, slideDuration * 0.6)],
+    [0, gradientOpacity],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+
+  // 圆角淡入（开始满屏无圆角，滑动后出现）
+  const radius = interpolate(slideProgress, [0, 1], [0, borderRadius], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  // 投影随滑动进度增强
+  const shadowStrength = shadow * slideProgress;
+
   const startFromFrames = Math.max(0, Math.floor(startFrom * (fps || 30)));
 
-  // 滑动动画逐帧状态（计算逻辑与 SlideRightEffect 共享，确保动画曲线一致）
-  const {
-    offsetX,
-    videoScale,
-    maskOpacity,
-    radius,
-    shadowStrength,
-    maskGradient,
-  } = computeSlideRight(frame, width, {
-    slideDistance,
-    slideDuration,
-    finalScale,
+  // 渐变蒙版 CSS：左端为 gradientColor 实色，右端为同色 0 透明，避免灰边
+  const maskGradient = `linear-gradient(to right, ${toRgba(
     gradientColor,
-    gradientOpacity,
-    borderRadius,
-    shadow,
-  });
+    1,
+  )} 0%, ${toRgba(gradientColor, 0)} 100%)`;
 
   if (!src) {
     return (
@@ -122,6 +158,12 @@ export const SlideRightTransition: React.FC<{
     );
   }
 
+  const transformOriginMap: Record<string, string> = {
+    left: "left center",
+    center: "center center",
+    right: "right center",
+  };
+
   return (
     <AbsoluteFill
       style={{ background: bgGradient || bgColor, overflow: "hidden" }}
@@ -135,7 +177,7 @@ export const SlideRightTransition: React.FC<{
           width,
           height,
           transform: `scale(${videoScale})`,
-          transformOrigin: SLIDE_RIGHT_TRANSFORM_ORIGIN_MAP[scaleOrigin] || "left center",
+          transformOrigin: transformOriginMap[scaleOrigin] || "left center",
           opacity: videoOpacity,
           borderRadius: radius,
           overflow: "hidden",

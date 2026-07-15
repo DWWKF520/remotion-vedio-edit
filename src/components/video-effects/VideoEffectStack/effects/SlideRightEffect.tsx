@@ -1,6 +1,18 @@
 import React from "react";
+import { interpolate, Easing } from "remotion";
 import type { EffectWrapperProps } from "../types";
-import { computeSlideRight, SLIDE_RIGHT_TRANSFORM_ORIGIN_MAP } from "../../SlideRightTransition/shared";
+
+function toRgba(hex: string, alpha: number): string {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (m) {
+    const n = parseInt(m[1], 16);
+    const r = (n >> 16) & 255;
+    const g = (n >> 8) & 255;
+    const b = n & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
+  return alpha === 0 ? "transparent" : hex;
+}
 
 /**
  * 右移渐变效果包装器
@@ -23,23 +35,39 @@ export const SlideRightEffect: React.FC<EffectWrapperProps> = ({
   const borderRadius = Number(params.borderRadius ?? 16);
   const shadow = Number(params.shadow ?? 0.5);
 
-  // 滑动动画逐帧状态（计算逻辑与 SlideRightTransition 共享，确保动画曲线一致）
-  const {
-    offsetX,
-    videoScale,
-    maskOpacity,
-    radius,
-    shadowStrength,
-    maskGradient,
-  } = computeSlideRight(frame, width, {
-    slideDistance,
-    slideDuration,
-    finalScale,
-    gradientColor,
-    gradientOpacity,
-    borderRadius,
-    shadow,
+  const slideProgress = interpolate(frame, [0, slideDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
+
+  const offsetX = (slideDistance / 100) * width * slideProgress;
+  const videoScale = interpolate(slideProgress, [0, 1], [1, finalScale], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const maskOpacity = interpolate(
+    frame,
+    [0, Math.max(1, slideDuration * 0.6)],
+    [0, gradientOpacity],
+    { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+  );
+  const radius = interpolate(slideProgress, [0, 1], [0, borderRadius], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const shadowStrength = shadow * slideProgress;
+
+  const maskGradient = `linear-gradient(to right, ${toRgba(
+    gradientColor,
+    1,
+  )} 0%, ${toRgba(gradientColor, 0)} 100%)`;
+
+  const transformOriginMap: Record<string, string> = {
+    left: "left center",
+    center: "center center",
+    right: "right center",
+  };
 
   return (
     <div
@@ -58,7 +86,7 @@ export const SlideRightEffect: React.FC<EffectWrapperProps> = ({
           width,
           height,
           transform: `scale(${videoScale})`,
-          transformOrigin: SLIDE_RIGHT_TRANSFORM_ORIGIN_MAP[scaleOrigin] || "left center",
+          transformOrigin: transformOriginMap[scaleOrigin] || "left center",
           borderRadius: radius,
           overflow: "hidden",
           boxShadow:

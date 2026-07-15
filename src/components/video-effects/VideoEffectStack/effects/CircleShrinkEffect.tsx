@@ -1,6 +1,6 @@
 import React from "react";
+import { interpolate, Easing, spring } from "remotion";
 import type { EffectWrapperProps } from "../types";
-import { computeCircleShrink, getCircleShrinkGlow } from "../../CircleShrinkTransition/shared";
 
 /**
  * 圆形收缩效果包装器
@@ -33,27 +33,71 @@ export const CircleShrinkEffect: React.FC<EffectWrapperProps> = ({
   const glowIntensity = Number(params.glowIntensity ?? 0.8);
   const bgDim = Number(params.bgDim ?? 0.4);
 
-  // 收缩动画逐帧状态（计算逻辑与 CircleShrinkTransition 共享，确保动画曲线一致）
-  const {
-    curX,
-    curY,
-    shapeHalfW,
-    shapeHalfH,
-    shapeBorderRadius,
-    videoScale,
-    dimProgress,
-    ringScale,
-  } = computeCircleShrink(frame, fps || 30, width, height, {
-    shape,
-    rectAspect,
-    cornerRadius,
-    contentMode,
-    finalX,
-    finalY,
-    finalRadius,
-    shrinkDuration,
-    bgDim,
+  const maxRadius = Math.sqrt(width * width + height * height) / 2 + 200;
+
+  const shrinkProgress = interpolate(frame, [0, shrinkDuration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
+
+  const startX = width / 2;
+  const startY = height / 2;
+  const endX = (finalX / 100) * width;
+  const endY = (finalY / 100) * height;
+
+  const curX = interpolate(shrinkProgress, [0, 1], [startX, endX], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const curY = interpolate(shrinkProgress, [0, 1], [startY, endY], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+  const curRadius = interpolate(
+    shrinkProgress,
+    [0, 1],
+    [maxRadius, finalRadius],
+    {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    },
+  );
+
+  const shapeHalfW = shape === "rect" ? curRadius * rectAspect : curRadius;
+  const shapeHalfH = curRadius;
+  const shapeBorderRadius =
+    shape === "circle"
+      ? "50%"
+      : shape === "rounded"
+        ? `${cornerRadius}px`
+        : "0px";
+
+  const finalShapeW =
+    shape === "rect" ? finalRadius * rectAspect * 2 : finalRadius * 2;
+  const finalShapeH = finalRadius * 2;
+  const videoRatio = width / height;
+  const finalShapeRatio = finalShapeW / finalShapeH;
+  const finalScale =
+    videoRatio > finalShapeRatio
+      ? finalShapeH / height
+      : finalShapeW / width;
+  const videoScale = interpolate(shrinkProgress, [0, 1], [1, finalScale], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const dimProgress = interpolate(frame, [2, shrinkDuration + 4], [0, bgDim], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+  });
+
+  const ringSpring = spring({
+    frame: frame - 2,
+    fps: fps || 30,
+    config: { damping: 10, mass: 0.4, stiffness: 200 },
+  });
+  const ringScale = 0.8 + 0.2 * Math.min(1, ringSpring);
 
   return (
     <div
@@ -85,7 +129,10 @@ export const CircleShrinkEffect: React.FC<EffectWrapperProps> = ({
           borderRadius: shapeBorderRadius,
           overflow: "hidden",
           zIndex: 2,
-          boxShadow: getCircleShrinkGlow(glowIntensity),
+          boxShadow:
+            glowIntensity > 0
+              ? `0 0 ${40 * glowIntensity}px rgba(255,255,255,${0.3 * glowIntensity}), 0 0 ${80 * glowIntensity}px rgba(255,255,255,${0.15 * glowIntensity})`
+              : "none",
         }}
       >
         {contentMode === "scale" ? (
