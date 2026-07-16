@@ -1,0 +1,81 @@
+@font-face {
+  font-display: block;
+  font-family: Mori;
+  font-style: normal;
+  font-weight: 600;
+  src: url(https://assets.codepen.io/16327/PPMori-Regular.woff) format("woff");
+}
+
+html, body {
+  margin:0;
+  padding:0;
+  width:100%;
+  height:100vh;
+}
+  
+body {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  font-family: "Mori";
+  background: #0e100f;
+  text-align:center;
+  color: rgb(255, 252, 225);
+  font-size: clamp(1rem, 1.5rem, 3vw);
+}
+
+.box {
+  background:#fffce1;
+  border-radius:10px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-top: 2rem;
+  opacity: 0;
+}
+
+.small {
+  aspect-ratio: 9/16;
+  width: 20%;
+}
+
+.large {
+  aspect-ratio: 16/9;
+  width: 50%;
+}
+
+.box img {
+  width:33%;
+}
+
+.text {
+  position: fixed;
+  bottom: 2rem;
+}
+
+.braces {
+  position: relative;
+  color: var(--light)
+}
+
+.braces:before {
+  position: absolute;
+  content: "";
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 27 78'%3E%3Cpath fill='%23FFFCE1' d='M26.52 77.21h-5.75c-6.83 0-12.38-5.56-12.38-12.38V48.38C8.39 43.76 4.63 40 .01 40v-4c4.62 0 8.38-3.76 8.38-8.38V12.4C8.38 5.56 13.94 0 20.77 0h5.75v4h-5.75c-4.62 0-8.38 3.76-8.38 8.38V27.6c0 4.34-2.25 8.17-5.64 10.38 3.39 2.21 5.64 6.04 5.64 10.38v16.45c0 4.62 3.76 8.38 8.38 8.38h5.75v4.02Z'%3E%3C/path%3E%3C/svg%3E");
+  right: 100%; height: 150%;
+  top: -25%;
+  aspect-ratio: 1/2;
+  background-repeat: no-repeat;
+}
+
+.braces:after {
+  position: absolute;
+  content: "";
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 27 78'%3E%3Cpath fill='%23FFFCE1' d='M26.52 77.21h-5.75c-6.83 0-12.38-5.56-12.38-12.38V48.38C8.39 43.76 4.63 40 .01 40v-4c4.62 0 8.38-3.76 8.38-8.38V12.4C8.38 5.56 13.94 0 20.77 0h5.75v4h-5.75c-4.62 0-8.38 3.76-8.38 8.38V27.6c0 4.34-2.25 8.17-5.64 10.38 3.39 2.21 5.64 6.04 5.64 10.38v16.45c0 4.62 3.76 8.38 8.38 8.38h5.75v4.02Z'%3E%3C/path%3E%3C/svg%3E");
+  left: 100%; height: 150%;
+  transform: rotate(180deg);
+  top: -25%;
+  aspect-ratio: 1/2;
+  background-repeat: no-repeat;
+}

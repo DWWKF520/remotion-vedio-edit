@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
 import { CompositionRenderer } from "./renderer";
 import { setPlayerRef, useEditorStore } from "./store";
+import { useThemeStore, TIMELINE_COLLAPSED_HEIGHT } from "./theme-store";
 import { MaskEditorOverlay } from "./MaskEditorOverlay";
 import { VideoCropOverlay } from "./VideoCropOverlay";
 import type { VideoEffectItem, MaskEffectParams } from "../components/video-effects/VideoEffectStack/types";
@@ -25,11 +26,6 @@ const ASPECT_PRESETS: {
 }[] = [
   { label: "16:9 横屏", w: 1920, h: 1080 },
   { label: "9:16 竖屏", w: 1080, h: 1920 },
-  { label: "1:1 方形", w: 1080, h: 1080 },
-  { label: "4:3 传统", w: 1440, h: 1080 },
-  { label: "3:4 竖版", w: 1080, h: 1440 },
-  { label: "4:5 人像", w: 1080, h: 1350 },
-  { label: "21:9 影院", w: 2560, h: 1080 },
 ];
 
 export const Preview: React.FC = React.memo(() => {
@@ -57,6 +53,12 @@ export const Preview: React.FC = React.memo(() => {
   const maskParams = ((maskEffect?.params as unknown) as MaskEffectParams) ?? { masks: [] };
 
   const containerRef = useRef<HTMLDivElement>(null);
+  // 预览区根容器：用 ResizeObserver 监听其高度变化
+  const rootRef = useRef<HTMLDivElement>(null);
+  // 记录上一次是否为"高瘦"状态，仅在跨阈值时切换画幅（避免覆盖用户手动选择）
+  const wasTallRef = useRef<boolean | null>(null);
+  // 跳过首次 [width, height] 变化，避免与开机动画冲突
+  const skipFirstSizeRef = useRef(true);
 
   const ref = useRef<PlayerRef>(null);
   const callbacksRef = useRef({ onFrameChange, onPlayStateChanged });
@@ -87,6 +89,50 @@ export const Preview: React.FC = React.memo(() => {
     };
   }, []); // empty deps — stable event subscription
 
+  // ===== 自动切换画幅：参考 gsap-matchmedia 的响应式思路 =====
+  // gsap.matchMedia() 基于 CSS 媒体查询（视口级），无法感知"时间轴伸缩导致预览区变高"
+  // 这种元素级变化。改用 ResizeObserver 监听预览根容器：
+  //   - 预览区高度 > 5/6 可用空间（时间轴被收起到 1/6 以下） → 9:16 竖屏
+  //   - 反之 → 16:9 横屏
+  // "可用空间" = 视口高度 - 顶部导航栏(44px)，即预览区与时间轴共享的垂直空间。
+  // 不能直接用 5/6 * vh：预览区最大高度 = vh - 44 - timelineMin，在 vh<982 时
+  // 永远够不到 5/6*vh，导致切换失效。
+  // 仅在跨阈值时切换，保留用户手动选择。
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    let raf = 0;
+    const check = () => {
+      raf = 0;
+      const rect = el.getBoundingClientRect();
+      const availableH = window.innerHeight - 44; // 减去顶部 h-11 导航栏
+      // 主条件：预览区高度 > 5/6 可用空间（时间轴 < 1/6）
+      // 兜底：短视口下 5/6 不可达时，时间轴收到最小值也触发竖屏
+      const ratioTriggered = rect.height > (3 / 4) * availableH;
+      const collapsedTriggered =
+        useThemeStore.getState().timelineHeight <= TIMELINE_COLLAPSED_HEIGHT + 4;
+      const isTall = ratioTriggered || collapsedTriggered;
+      if (isTall !== wasTallRef.current) {
+        wasTallRef.current = isTall;
+        if (isTall) {
+          setCanvasSize(1080, 1920); // 9:16 竖屏
+        } else {
+          setCanvasSize(1920, 1080); // 16:9 横屏
+        }
+      }
+    };
+    // 等布局稳定后再首检
+    raf = requestAnimationFrame(check);
+    const ro = new ResizeObserver(() => {
+      if (!raf) raf = requestAnimationFrame(check);
+    });
+    ro.observe(el);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [setCanvasSize]);
+
   // TV 开机动画：屏幕从缩小淡入 → 微微放大 → 回落定局
   useGSAP(() => {
     const el = containerRef.current;
@@ -99,6 +145,23 @@ export const Preview: React.FC = React.memo(() => {
     ).to(el, { scale: 1, duration: 0.3, ease: "power3.inOut" });
   }, []);
 
+  // 画幅切换动画：参考 gsap-matchmedia 模式，按当前画幅方向选择旋转方向
+  // 从 0 缩放并旋转 ±180° 入场，back.out(1.7) 弹性定局（CodePen wvLPVGz 风格）
+  useGSAP(() => {
+    if (skipFirstSizeRef.current) {
+      skipFirstSizeRef.current = false;
+      return;
+    }
+    const el = containerRef.current;
+    if (!el) return;
+    const isPortraitNow = height > width;
+    gsap.fromTo(
+      el,
+      { scale: 0, rotation: isPortraitNow ? -180 : 180 },
+      { scale: 1, rotation: 0, duration: 0.6, ease: "back.out(1.7)" },
+    );
+  }, [width, height]);
+
   // 当前预设值（用于下拉显示），通过宽高匹配
   const currentPresetValue = `${width}x${height}`;
   const matchedPreset = ASPECT_PRESETS.find(
@@ -109,7 +172,10 @@ export const Preview: React.FC = React.memo(() => {
   const isPortrait = height > width;
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col bg-[#e5e5ea]/40 dark:bg-black">
+    <div
+      ref={rootRef}
+      className="relative flex min-h-0 flex-1 flex-col bg-[#e5e5ea]/40 dark:bg-black"
+    >
       {/* 顶部工具栏：画幅比例选择 */}
       <div className="flex h-8 flex-shrink-0 items-center gap-2 border-b border-[var(--separator)] bg-[var(--surface-overlay)] px-3 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/60">
         <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8e8e93] dark:text-[#8e8e93]">

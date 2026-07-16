@@ -1,9 +1,14 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEditorStore } from "./store";
 import { getComponentDef } from "./registry";
 import type { Clip } from "./types";
 import { useHistoryStore } from "./history-store";
 import { gsap, useGSAP } from "./gsap-setup";
+import {
+  useThemeStore,
+  TIMELINE_COLLAPSED_HEIGHT,
+  TIMELINE_DEFAULT_HEIGHT,
+} from "./theme-store";
 
 const TRACK_HEAD_WIDTH = 140;
 const TRACK_HEIGHT = 48;
@@ -426,8 +431,6 @@ export const Timeline: React.FC = () => {
   const currentFrame = useEditorStore((s) => s.currentFrame);
   const isPlaying = useEditorStore((s) => s.isPlaying);
   const fps = useEditorStore((s) => s.fps);
-  const canvasWidth = useEditorStore((s) => s.width);
-  const canvasHeight = useEditorStore((s) => s.height);
 
   const selectClip = useEditorStore((s) => s.selectClip);
   const updateClipTiming = useEditorStore((s) => s.updateClipTiming);
@@ -443,6 +446,56 @@ export const Timeline: React.FC = () => {
   const setPxPerFrame = useEditorStore((s) => s.setPxPerFrame);
   const setCurrentFrame = useEditorStore((s) => s.setCurrentFrame);
   const togglePlay = useEditorStore((s) => s.togglePlay);
+
+  // ===== VS Code 底栏风格：可伸缩时间轴 =====
+  const timelineHeight = useThemeStore((s) => s.timelineHeight);
+  const setTimelineHeight = useThemeStore((s) => s.setTimelineHeight);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  const startResize = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const startY = e.clientY;
+      const startH = useThemeStore.getState().timelineHeight;
+      document.body.style.cursor = "ns-resize";
+      document.body.style.userSelect = "none";
+
+      const onMove = (ev: MouseEvent) => {
+        // 向上拖增大高度
+        const dy = startY - ev.clientY;
+        setTimelineHeight(startH + dy);
+      };
+      const onUp = () => {
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      };
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+    },
+    [setTimelineHeight],
+  );
+
+  const toggleCollapse = useCallback(() => {
+    const cur = useThemeStore.getState().timelineHeight;
+    setTimelineHeight(cur <= TIMELINE_COLLAPSED_HEIGHT + 8 ? TIMELINE_DEFAULT_HEIGHT : TIMELINE_COLLAPSED_HEIGHT);
+  }, [setTimelineHeight]);
+
+  // 视口尺寸变化时重新夹取高度（避免超过新的 80vh 上限）
+  useEffect(() => {
+    const onResize = () => {
+      const cur = useThemeStore.getState().timelineHeight;
+      const next = Math.max(
+        120,
+        Math.min(Math.floor(window.innerHeight * 0.8), cur),
+      );
+      if (next !== cur) setTimelineHeight(next);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [setTimelineHeight]);
 
   // Undo / Redo
   const canUndo = useHistoryStore((s) => s.canUndo);
@@ -689,14 +742,24 @@ export const Timeline: React.FC = () => {
   );
 
   // 竖屏画幅时减小时间线高度，把垂直空间让给预览区
-  const isPortrait = canvasHeight > canvasWidth;
+  // （现在改为 VS Code 底栏风格的可伸缩高度，由 theme-store.timelineHeight 驱动）
 
   return (
     <div
-      className={`flex flex-shrink-0 flex-col border-t border-[var(--separator)] bg-[var(--surface-overlay)]/50 text-xs text-[#3c3c43] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/80 dark:text-[#aeaeb2] ${
-        isPortrait ? "h-[180px] min-h-[140px]" : "h-[300px] min-h-[250px]"
-      }`}
+      ref={rootRef}
+      className="relative flex flex-shrink-0 flex-col border-t border-[var(--separator)] bg-[var(--surface-overlay)]/50 text-xs text-[#3c3c43] dark:border-[var(--separator)] dark:bg-[#1c1c1e]/80 dark:text-[#aeaeb2]"
+      style={{ height: timelineHeight }}
     >
+      {/* ===== 顶部伸缩手柄（VS Code 风格） ===== */}
+      <div
+        onMouseDown={startResize}
+        onDoubleClick={toggleCollapse}
+        title="拖动调整高度 · 双击收起/展开"
+        className="group absolute -top-1 left-0 right-0 z-30 flex h-2 cursor-ns-resize items-center justify-center"
+      >
+        <div className="h-[3px] w-10 rounded-full bg-[var(--separator-opaque)] opacity-60 transition-all duration-150 group-hover:w-14 group-hover:bg-[#007aff] group-hover:opacity-100 dark:group-hover:bg-[#0a84ff]" />
+      </div>
+
       {/* ===== 播放控件栏 - 剪映风格：居中的播放按钮 ===== */}
       <div className="glass flex h-10 flex-shrink-0 items-center gap-1.5 border-b border-[var(--separator)] bg-[var(--surface-overlay)] px-4 dark:border-[var(--separator)] dark:bg-[#1c1c1e]/72">
         {/* 左侧：添加轨道 - 次级按钮 */}
