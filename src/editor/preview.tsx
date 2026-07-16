@@ -5,6 +5,8 @@ import { setPlayerRef, useEditorStore } from "./store";
 import { MaskEditorOverlay } from "./MaskEditorOverlay";
 import { VideoCropOverlay } from "./VideoCropOverlay";
 import type { VideoEffectItem, MaskEffectParams } from "../components/video-effects/VideoEffectStack/types";
+import { gsap, useGSAP } from "./gsap-setup";
+import tvBg from "./preview-assets/tv-bg.jpg";
 
 /**
  * 预览区：用 @remotion/player 的 <Player> 渲染 CompositionRenderer。
@@ -85,6 +87,18 @@ export const Preview: React.FC = React.memo(() => {
     };
   }, []); // empty deps — stable event subscription
 
+  // TV 开机动画：屏幕从缩小淡入 → 微微放大 → 回落定局
+  useGSAP(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const tl = gsap.timeline();
+    tl.fromTo(
+      el,
+      { scale: 0.88, opacity: 0 },
+      { scale: 1.02, opacity: 1, duration: 0.45, ease: "power2.out" },
+    ).to(el, { scale: 1, duration: 0.3, ease: "power3.inOut" });
+  }, []);
+
   // 当前预设值（用于下拉显示），通过宽高匹配
   const currentPresetValue = `${width}x${height}`;
   const matchedPreset = ASPECT_PRESETS.find(
@@ -128,11 +142,15 @@ export const Preview: React.FC = React.memo(() => {
         </span>
       </div>
 
-      {/* 预览画布 */}
-      <div className="relative flex min-h-0 flex-1 items-center justify-center p-2">
+      {/* 预览画布 — TV 造型 */}
+      <div
+        className="tv-stage relative flex min-h-0 flex-1 flex-col items-center justify-center p-5"
+        style={{ backgroundImage: `url(${tvBg})` }}
+      >
+        <div className="flex min-h-0 w-full flex-1 items-center justify-center">
         <div
           ref={containerRef}
-          className="relative overflow-hidden rounded-lg border-2 border-[#007aff]/20 shadow-lg shadow-black/10 ring-1 ring-[var(--separator)] dark:shadow-black/40 dark:ring-[var(--separator)]"
+          className="tv-screen relative overflow-hidden"
           style={{
             aspectRatio: `${width} / ${height}`,
             maxHeight: "100%",
@@ -204,6 +222,9 @@ export const Preview: React.FC = React.memo(() => {
             />
           )}
         </div>
+        </div>
+        {/* TV 底座 */}
+        <div className="tv-stand flex-shrink-0" />
       </div>
     </div>
   );

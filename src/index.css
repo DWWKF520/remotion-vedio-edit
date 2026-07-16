@@ -316,6 +316,90 @@ html.theme-transitioning *::after {
                 color 0.15s cubic-bezier(0.32, 0.72, 0, 1);
   }
 
+  /* ===== TV 预览播放器造型 ===== */
+
+  /* 舞台：放置 TV 的背景区域 */
+  .tv-stage {
+    background-size: cover;
+    background-position: center;
+    position: relative;
+  }
+
+  /* 背景暗角，聚焦 TV 屏幕 */
+  .tv-stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(
+      ellipse at center,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.35) 60%,
+      rgba(0, 0, 0, 0.65) 100%
+    );
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* TV 屏幕本体：通过 box-shadow 模拟外壳边框，不影响布局 */
+  .tv-screen {
+    border-radius: 6px;
+    box-shadow:
+      0 0 0 10px #1c1c1e,       /* 内层边框 */
+      0 0 0 12px #3a3a3c,       /* 金属高光 */
+      0 0 0 13px #0a0a0a,       /* 外层暗边 */
+      0 20px 50px rgba(0, 0, 0, 0.6),  /* 投影 */
+      0 8px 20px rgba(0, 0, 0, 0.4),
+      inset 0 0 25px rgba(0, 0, 0, 0.35); /* 屏幕暗角 */
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 屏幕反光（对角线渐变，pointer-events:none 不阻挡交互） */
+  .tv-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.06) 0%,
+      rgba(255, 255, 255, 0.02) 20%,
+      transparent 40%,
+      transparent 60%,
+      rgba(255, 255, 255, 0.01) 80%,
+      rgba(255, 255, 255, 0.03) 100%
+    );
+    pointer-events: none;
+    z-index: 5;
+    border-radius: 6px;
+  }
+
+  /* TV 底座 */
+  .tv-stand {
+    width: 22%;
+    max-width: 100px;
+    min-width: 50px;
+    height: 8px;
+    background: linear-gradient(180deg, #2a2a2c 0%, #1a1a1c 50%, #0a0a0a 100%);
+    margin: -1px auto 0;
+    border-radius: 0 0 4px 4px;
+    position: relative;
+    z-index: 0;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  }
+
+  /* 底座基板 */
+  .tv-stand::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140%;
+    height: 4px;
+    background: linear-gradient(180deg, #1a1a1c, #050505);
+    border-radius: 0 0 3px 3px;
+  }
+
   /* 轨道头图标按钮 */
   .track-icon-btn {
     background: transparent;
