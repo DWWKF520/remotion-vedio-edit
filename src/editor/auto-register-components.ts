@@ -14,7 +14,7 @@ import "../components/ui/LightSpotlight/manifest";
 import "../components/ui/SalaryCompare/manifest";
 import "../components/ui/SpeakingPerson/manifest";
 import "../components/ui/ReportHighlight/manifest";
-import "../components/ui/LuosifenAnimation/manifest";
+import "../components/ui/LuosifenNarrationClip/manifest";
 import "../components/ui/ZoomReveal/manifest";
 import "../components/clips/VideoClip/manifest";
 import "../components/clips/ImageClip/manifest";

@@ -272,7 +272,7 @@ const Stage1: React.FC<{
             fontWeight: 700,
             color: "#fff",
             fontVariantNumeric: "tabular-nums",
-            minWidth: 240,
+            minWidth: 2100,
             textAlign: "right",
           }}
         >

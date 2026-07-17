@@ -133,13 +133,14 @@ async function getBundle(): Promise<string> {
     const publicDir = path.resolve(__dirname, "public");
     // 固定 bundle 输出到 E 盘，避免使用 C 盘临时目录
     const bundleOutputDir = path.resolve(__dirname, ".tmp/remotion-bundle");
-    bundlePromise = bundle({
-      entryPoint: path.resolve(__dirname, "src/index.ts"),
-      // Remotion v4 默认不复制 public 目录，渲染时 /uploads/ 等资源会 404
-      publicDir,
-      outputDir: bundleOutputDir,
-      onProgress: () => {},
-    }).then((serveUrl) => {
+    bundlePromise = bundle(
+      path.resolve(__dirname, "src/index.ts"),
+      () => {},
+      {
+        publicDir,
+        outDir: bundleOutputDir,
+      },
+    ).then((serveUrl) => {
       // 手动复制 uploads/ 到 serve 目录，同时将中文文件名重命名为纯 ASCII
       // 避免 Remotion 内部 HTTP 服务器无法正确处理 URL 编码的中文路径
       const srcUploads = path.join(publicDir, "uploads");
@@ -609,7 +610,10 @@ export default defineConfig({
                 serveUrl,
                 codec: "h264",
                 outputLocation: outputPath,
-                concurrency: 1,
+                concurrency: Math.max(2, require("os").cpus().length - 1),
+                chromiumOptions: {
+                  gl: "angle",
+                },
                 inputProps: {
                   tracks: renderPayload.tracks,
                   clips: renderPayload.clips,
